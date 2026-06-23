@@ -400,12 +400,18 @@ class PaintableView(DropArea):
     """
     在原图上绘制保护蒙版的预览控件。
 
+    统一语义：
+        - _mask 中 255 表示「被选中 / 受保护的前景区域」
+        - 画笔、矩形、油漆桶直接扩展 _mask
+        - 魔棒点击背景后，会先把背景选区反转为前景选区，再合并到 _mask
+        - 「反选」按钮直接对 _mask 做 0↔255 翻转
+
     工具：
         TOOL_BRUSH        圆形画笔（涂抹保护区）
         TOOL_ERASER       圆形橡皮（擦除保护区）
         TOOL_RECT_BRUSH   矩形画笔（拖一个矩形 → 内部全部保护）
         TOOL_RECT_ERASER  矩形橡皮（拖一个矩形 → 内部全部清除）
-        TOOL_MAGIC        魔棒选区
+        TOOL_MAGIC        魔棒选区（点击背景，反转为前景后写入 _mask）
         TOOL_BUCKET       油漆桶填充（填充封闭区域）
         TOOL_EYEDROPPER   吸管吸取背景色
         TOOL_NONE         浏览（默认）
@@ -415,7 +421,7 @@ class PaintableView(DropArea):
         history_changed 信号在栈位置改变时发出，主窗口据此刷新按钮可用状态。
     """
 
-    magic_changed = Signal(int, int, str)  # (selected_pixels, total_pixels, mode)
+    selection_changed = Signal(int, int, str)  # (selected_pixels, total_pixels, mode)
     mask_changed = Signal()
     history_changed = Signal(bool, bool)  # (can_undo, can_redo)
     color_picked = Signal(int, int, int)     # (R, G, B)
@@ -442,12 +448,10 @@ class PaintableView(DropArea):
         # 魔棒
         self._src_rgb: Optional[np.ndarray] = None  # (H, W, 3) uint8
         self._magic_tol: int = 30
-        self._magic_sel: Optional[np.ndarray] = None  # (H, W) uint8 0/255
 
-        # 历史栈：list of (kind, payload)
-        # kind="mask"   payload=(y0,y1,x0,x1, before, after)
-        # kind="magic"  payload=(before_sel, after_sel)  整张存（一般稀疏）
-        self._history: list[tuple[str, tuple]] = []
+        # 历史栈：list of (y0, y1, x0, x1, before, after)
+        # 为节省内存，只记录发生变化的 bbox；全图操作（如清空/反选）记录 (0,H,0,W)
+        self._history: list[tuple[int, int, int, int, np.ndarray, np.ndarray]] = []
         self._history_pos: int = 0
 
         self.setMouseTracking(True)
@@ -469,7 +473,6 @@ class PaintableView(DropArea):
         else:
             self._mask[:] = 0
         self._image_size = (w, h)
-        self._magic_sel = None
         self._history.clear()
         self._history_pos = 0
         self.history_changed.emit(False, False)
@@ -530,28 +533,18 @@ class PaintableView(DropArea):
         if not self.can_undo():
             return
         self._history_pos -= 1
-        kind, payload = self._history[self._history_pos]
-        if kind == "mask":
-            y0, y1, x0, x1, before, _after = payload
-            self._mask[y0:y1, x0:x1] = before
-            self.mask_changed.emit()
-        elif kind == "magic":
-            before, _after = payload
-            self._magic_sel = before.copy() if before is not None else None
+        y0, y1, x0, x1, before, _after = self._history[self._history_pos]
+        self._mask[y0:y1, x0:x1] = before
+        self.mask_changed.emit()
         self.history_changed.emit(self.can_undo(), self.can_redo())
         self.update()
 
     def redo(self) -> None:
         if not self.can_redo():
             return
-        kind, payload = self._history[self._history_pos]
-        if kind == "mask":
-            y0, y1, x0, x1, _before, after = payload
-            self._mask[y0:y1, x0:x1] = after
-            self.mask_changed.emit()
-        elif kind == "magic":
-            _before, after = payload
-            self._magic_sel = after.copy() if after is not None else None
+        y0, y1, x0, x1, _before, after = self._history[self._history_pos]
+        self._mask[y0:y1, x0:x1] = after
+        self.mask_changed.emit()
         self._history_pos += 1
         self.history_changed.emit(self.can_undo(), self.can_redo())
         self.update()
@@ -569,64 +562,49 @@ class PaintableView(DropArea):
         self.update()
 
     # ------------------------------------------------------------------
-    # 魔棒
+    # 魔棒（已统一到 _mask：点击背景 → 反转为前景 → 合并到 _mask）
     # ------------------------------------------------------------------
-    def get_magic_selection(self) -> Optional[np.ndarray]:
-        return self._magic_sel
-
-    def has_magic_selection(self) -> bool:
-        return self._magic_sel is not None and bool(self._magic_sel.any())
-
-    def clear_magic_selection(self) -> None:
-        if not self.has_magic_selection():
-            return
-        before = self._magic_sel.copy() if self._magic_sel is not None else None
-        self._magic_sel = None
-        self._push_magic_history(before, None)
-        self.update()
-
     def _magic_click(self, x: int, y: int, mode: str = "replace") -> None:
-        """魔棒点击：在 (x, y) 处做 flood fill，按 mode 合并到 _magic_sel。"""
+        """魔棒点击：在 (x, y) 处做 flood fill，选中相似背景后反转为前景，合并到 _mask。"""
         if self._src_rgb is None or self._image_size is None:
-            self.magic_changed.emit(0, 0, mode)
+            self.selection_changed.emit(0, 0, mode)
             return
         from src.core.algorithms import magic_wand_select  # 局部 import 避免循环
-        sel = magic_wand_select(
+        bg_sel = magic_wand_select(
             self._src_rgb, seed_xy=(x, y), tolerance=self._magic_tol, connected=True
         )
-        hit_pixels = int(np.count_nonzero(sel))
-        total_pixels = int(sel.size)
+        hit_pixels = int(np.count_nonzero(bg_sel))
+        total_pixels = int(bg_sel.size)
         if hit_pixels == 0:
-            self.magic_changed.emit(0, total_pixels, mode)
+            self.selection_changed.emit(0, total_pixels, mode)
             return
-        before = self._magic_sel.copy() if self._magic_sel is not None else None
-        if mode == "add" and self._magic_sel is not None:
-            new_sel = np.maximum(self._magic_sel, sel)
-        elif mode == "sub" and self._magic_sel is not None:
-            new_sel = np.where(sel > 0, 0, self._magic_sel).astype(np.uint8)
-        else:  # replace；没有现有选区时 Alt 减选也先显示本次命中的区域，避免看起来无响应
-            new_sel = sel
-        self._magic_sel = new_sel
-        self._push_magic_history(before, new_sel.copy())
-        self.magic_changed.emit(int(np.count_nonzero(new_sel)), total_pixels, mode)
-        self.update()
 
-    def invert_selection_to_mask(self) -> None:
-        """把"魔棒选区取反"写入保护蒙版（覆盖现有蒙版，可撤销）。
+        # 背景选区反转为前景选区，与画笔语义一致
+        fg_sel = np.where(bg_sel > 0, 0, 255).astype(np.uint8)
 
-        语义：选区 = 背景，反选 = 前景，前景填进 mask 走"原图直通"通道。
-        """
-        if self._mask is None or self._image_size is None:
-            return
-        if not self.has_magic_selection():
-            # 没有魔棒选区时，把整张图反选 = 全图都是前景，没意义；什么都不做
-            return
         before = self._mask.copy()
-        # 选区为 0 的地方 = 前景，写 255；选区 = 255 的地方写 0
-        new_mask = np.where(self._magic_sel > 0, 0, 255).astype(np.uint8)
-        h, w = self._mask.shape
+        if mode == "add":
+            new_mask = np.maximum(self._mask, fg_sel)
+        elif mode == "sub":
+            new_mask = np.where(fg_sel > 0, 0, self._mask).astype(np.uint8)
+        else:  # replace
+            new_mask = fg_sel
         self._mask = new_mask
         after = self._mask.copy()
+        h, w = self._mask.shape
+        self._push_history(0, h, 0, w, before, after)
+        self.selection_changed.emit(int(np.count_nonzero(self._mask)), total_pixels, mode)
+        self.mask_changed.emit()
+        self.update()
+
+    def invert_mask(self) -> None:
+        """反选 _mask：0↔255 翻转，作为一次可撤销操作。"""
+        if self._mask is None or self._image_size is None:
+            return
+        before = self._mask.copy()
+        self._mask = 255 - self._mask
+        after = self._mask.copy()
+        h, w = self._mask.shape
         self._push_history(0, h, 0, w, before, after)
         self.mask_changed.emit()
         self.update()
@@ -732,19 +710,7 @@ class PaintableView(DropArea):
     ) -> None:
         # 截掉 redo 分支
         del self._history[self._history_pos:]
-        self._history.append(("mask", (y0, y1, x0, x1, before, after)))
-        if len(self._history) > HISTORY_MAX:
-            self._history.pop(0)
-        self._history_pos = len(self._history)
-        self.history_changed.emit(self.can_undo(), self.can_redo())
-
-    def _push_magic_history(
-        self,
-        before: Optional[np.ndarray],
-        after: Optional[np.ndarray],
-    ) -> None:
-        del self._history[self._history_pos:]
-        self._history.append(("magic", (before, after)))
+        self._history.append((y0, y1, x0, x1, before, after))
         if len(self._history) > HISTORY_MAX:
             self._history.pop(0)
         self._history_pos = len(self._history)
@@ -772,7 +738,7 @@ class PaintableView(DropArea):
     # 叠加层绘制
     # ------------------------------------------------------------------
     def _paint_overlay(self, p: QPainter, target_rect: QRect) -> None:
-        # 1. 蒙版红色半透明叠加（保护蒙版）
+        # 1. 蒙版红色半透明叠加（保护蒙版 / 统一选区）
         if self._mask is not None and self._mask.any():
             h, w = self._mask.shape
             rgba = np.zeros((h, w, 4), dtype=np.uint8)
@@ -780,16 +746,6 @@ class PaintableView(DropArea):
             rgba[..., 3] = (self._mask.astype(np.uint16) * 110 // 255).astype(np.uint8)
             mask_img = QImage(rgba.data, w, h, w * 4, QImage.Format_RGBA8888).copy()
             p.drawImage(target_rect, mask_img)
-
-        # 1b. 魔棒选区蓝色叠加（背景选区）
-        if self._magic_sel is not None and self._magic_sel.any():
-            h, w = self._magic_sel.shape
-            rgba = np.zeros((h, w, 4), dtype=np.uint8)
-            rgba[..., 2] = 255  # 蓝
-            rgba[..., 1] = 180
-            rgba[..., 3] = (self._magic_sel.astype(np.uint16) * 110 // 255).astype(np.uint8)
-            sel_img = QImage(rgba.data, w, h, w * 4, QImage.Format_RGBA8888).copy()
-            p.drawImage(target_rect, sel_img)
 
         # 2. 矩形拖动预览（橡皮带）
         if self._rect_dragging and self._rect_start_widget and self._rect_cur_widget:

@@ -219,7 +219,7 @@ class MainWindow(QMainWindow):
         self.src_view.files_dropped.connect(self._on_files_dropped)
         self.dst_view.files_dropped.connect(self._on_files_dropped)
         self.src_view.mask_changed.connect(self._on_mask_changed)
-        self.src_view.magic_changed.connect(self._on_magic_changed)
+        self.src_view.selection_changed.connect(self._on_selection_changed)
         self.src_view.history_changed.connect(self._on_history_changed)
         self.src_view.zoom_changed.connect(self._on_zoom_changed)
         self.src_view.color_picked.connect(self._on_color_picked)
@@ -254,9 +254,9 @@ class MainWindow(QMainWindow):
         self.btn_tool_rect_eraser = QPushButton("▭ 框选橡皮")
         self.btn_tool_magic = QPushButton("🪄 魔棒")
         self.btn_tool_magic.setToolTip(
-            "魔棒：点击选中黑色背景区域\n"
-            "Shift+点击 加选 / Alt+点击 减选\n"
-            "选完按「反选填充蒙版」(Ctrl+I)"
+            "魔棒：点击图中黑色背景区域\n"
+            "自动反转为前景并写入保护蒙版\n"
+            "Shift+点击 加选 / Alt+点击 减选"
         )
         self.btn_tool_bucket = QPushButton("🪣 油漆桶")
         self.btn_tool_bucket.setToolTip(
@@ -330,12 +330,12 @@ class MainWindow(QMainWindow):
         tb.addSpacing(16)
 
         # 选区操作
-        self.btn_invert_to_mask = QPushButton("⤺ 反选填充")
-        self.btn_invert_to_mask.setToolTip(
-            "把魔棒选中的「背景区域」反选 → 填进保护蒙版（前景全保留）\n"
+        self.btn_invert_mask = QPushButton("⤺ 反选")
+        self.btn_invert_mask.setToolTip(
+            "把当前保护蒙版 0↔255 翻转\n"
             "快捷键 Ctrl+I"
         )
-        self.btn_invert_to_mask.clicked.connect(self._on_invert_selection)
+        self.btn_invert_mask.clicked.connect(self._on_invert_mask)
         self.btn_undo = QPushButton("↶ 撤销")
         self.btn_redo = QPushButton("↷ 重做")
         self.btn_undo.setEnabled(False)
@@ -345,7 +345,7 @@ class MainWindow(QMainWindow):
         self.btn_clear_mask = QPushButton("清空蒙版")
         self.btn_clear_mask.clicked.connect(self._on_clear_mask)
 
-        tb.addWidget(self.btn_invert_to_mask)
+        tb.addWidget(self.btn_invert_mask)
         tb.addWidget(self.btn_undo)
         tb.addWidget(self.btn_redo)
         tb.addWidget(self.btn_clear_mask)
@@ -614,9 +614,9 @@ class MainWindow(QMainWindow):
         self.addAction(a_redo2)
 
         m_edit.addSeparator()
-        a_invert = QAction("反选魔棒并填充蒙版", self)
+        a_invert = QAction("反选蒙版", self)
         a_invert.setShortcut("Ctrl+I")
-        a_invert.triggered.connect(self._on_invert_selection)
+        a_invert.triggered.connect(self._on_invert_mask)
         m_edit.addAction(a_invert)
 
         a_clear = QAction("清空蒙版", self)
@@ -939,7 +939,7 @@ class MainWindow(QMainWindow):
             TOOL_ERASER: "橡皮擦：擦除已涂抹的保护区",
             TOOL_RECT_BRUSH: "框选画笔：拖动一个矩形 → 内部全部保护",
             TOOL_RECT_ERASER: "框选橡皮：拖动一个矩形 → 内部全部清除",
-            TOOL_MAGIC: "魔棒：点击选中黑色背景；Shift 加选 / Alt 减选；Ctrl+I 反选填充蒙版",
+            TOOL_MAGIC: "魔棒：点击黑色背景区域；Shift 加选 / Alt 减选；结果直接写入保护蒙版",
             TOOL_BUCKET: "油漆桶：点击封闭区域内部，一键填充保护蒙版",
             TOOL_EYEDROPPER: "吸管：点击原图吸取背景色（用于吸管背景色 / 背景色键控算法）",
             TOOL_NONE: "浏览模式（滚轮缩放，中键拖动平移）",
@@ -954,12 +954,12 @@ class MainWindow(QMainWindow):
         self.magic_tol_label.setText(str(v))
         self.src_view.set_magic_tolerance(v)
 
-    def _on_magic_changed(self, selected_pixels: int, total_pixels: int, mode: str) -> None:
+    def _on_selection_changed(self, selected_pixels: int, total_pixels: int, mode: str) -> None:
         if total_pixels <= 0:
-            self.statusBar().showMessage("魔棒未准备好：请重新打开图片后再试", 4000)
+            self.statusBar().showMessage("选区未准备好：请重新打开图片后再试", 4000)
             return
         if selected_pixels <= 0:
-            self.statusBar().showMessage("魔棒未选中像素：请点在图片内部，或调高容差", 4000)
+            self.statusBar().showMessage("未选中像素：请点在图片内部，或调高容差", 4000)
             return
         mode_name = {"replace": "选区", "add": "加选后选区", "sub": "减选后选区"}.get(mode, "选区")
         pct = selected_pixels / max(1, total_pixels) * 100
@@ -996,17 +996,10 @@ class MainWindow(QMainWindow):
         self.color_preview_label.setText(f"({r},{g},{b})")
         self.color_preview_box.setVisible(True)
 
-    def _on_invert_selection(self) -> None:
-        if not self.src_view.has_magic_selection():
-            self.statusBar().showMessage(
-                "请先选魔棒工具，点击图中黑色背景区域；然后再按反选填充", 4000
-            )
-            return
-        self.src_view.invert_selection_to_mask()
-        # 反选完后清空魔棒选区，让红色蒙版可见
-        self.src_view.clear_magic_selection()
+    def _on_invert_mask(self) -> None:
+        self.src_view.invert_mask()
         self._refresh_preview()
-        self.statusBar().showMessage("已反选并填充到保护蒙版（前景已全部保留）", 3000)
+        self.statusBar().showMessage("已反选保护蒙版", 3000)
 
     def _on_clear_mask(self) -> None:
         self.src_view.clear_mask()
