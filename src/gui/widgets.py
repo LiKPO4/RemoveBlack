@@ -39,6 +39,7 @@ TOOL_ERASER = "eraser"
 TOOL_RECT_BRUSH = "rect_brush"
 TOOL_RECT_ERASER = "rect_eraser"
 TOOL_MAGIC = "magic"     # 魔棒：点击选中黑色背景区域
+TOOL_BUCKET = "bucket"   # 油漆桶：填充封闭区域
 TOOL_EYEDROPPER = "eyedropper"  # 吸管：吸取背景色
 
 # 缩放范围
@@ -405,6 +406,7 @@ class PaintableView(DropArea):
         TOOL_RECT_BRUSH   矩形画笔（拖一个矩形 → 内部全部保护）
         TOOL_RECT_ERASER  矩形橡皮（拖一个矩形 → 内部全部清除）
         TOOL_MAGIC        魔棒选区
+        TOOL_BUCKET       油漆桶填充（填充封闭区域）
         TOOL_EYEDROPPER   吸管吸取背景色
         TOOL_NONE         浏览（默认）
 
@@ -486,6 +488,8 @@ class PaintableView(DropArea):
         elif tool == TOOL_MAGIC:
             # 魔棒用 PointingHand 光标更直观
             self.setCursor(QCursor(Qt.PointingHandCursor))
+        elif tool == TOOL_BUCKET:
+            self.setCursor(QCursor(Qt.CrossCursor))
         elif tool == TOOL_EYEDROPPER:
             self.setCursor(QCursor(Qt.CrossCursor))
         else:
@@ -626,6 +630,65 @@ class PaintableView(DropArea):
         self._push_history(0, h, 0, w, before, after)
         self.mask_changed.emit()
         self.update()
+
+    def bucket_fill(self, x: int, y: int) -> None:
+        """油漆桶：在蒙版上做 4 连通漫水填充。
+
+        点击处的像素值作为种子值，把所有连通的同值像素都填成 255。
+        典型用法：用笔刷围出一个封闭区域后，用油漆桶一键把内部填满。
+        """
+        if self._mask is None or self._image_size is None:
+            return
+        h, w = self._mask.shape
+        if not (0 <= x < w and 0 <= y < h):
+            return
+
+        seed_val = int(self._mask[y, x])
+        if seed_val == 255:
+            # 已经是不透明保护区，再填没有意义
+            return
+
+        before = self._mask.copy()
+        visited = np.zeros((h, w), dtype=bool)
+        stack = [(y, x)]
+        filled = 0
+
+        while stack:
+            cy, cx = stack.pop()
+            if cy < 0 or cy >= h or cx < 0 or cx >= w:
+                continue
+            if visited[cy, cx] or self._mask[cy, cx] != seed_val:
+                continue
+
+            lx = cx
+            while lx > 0 and not visited[cy, lx - 1] and self._mask[cy, lx - 1] == seed_val:
+                lx -= 1
+            rx = cx
+            while rx < w - 1 and not visited[cy, rx + 1] and self._mask[cy, rx + 1] == seed_val:
+                rx += 1
+
+            visited[cy, lx:rx + 1] = True
+            self._mask[cy, lx:rx + 1] = 255
+            filled += rx - lx + 1
+
+            for ny in (cy - 1, cy + 1):
+                if not (0 <= ny < h):
+                    continue
+                i = lx
+                while i <= rx:
+                    while i <= rx and (visited[ny, i] or self._mask[ny, i] != seed_val):
+                        i += 1
+                    if i > rx:
+                        break
+                    stack.append((ny, i))
+                    while i <= rx and not visited[ny, i] and self._mask[ny, i] == seed_val:
+                        i += 1
+
+        if filled > 0:
+            after = self._mask.copy()
+            self._push_history(0, h, 0, w, before, after)
+            self.mask_changed.emit()
+            self.update()
 
     # ------------------------------------------------------------------
     # 坐标换算
@@ -808,6 +871,13 @@ class PaintableView(DropArea):
                 else:
                     mode = "replace"
                 self._magic_click(ipt.x(), ipt.y(), mode)
+                return
+
+            if self._tool == TOOL_BUCKET:
+                ipt = self._widget_to_image(event.pos())
+                if ipt is None:
+                    return
+                self.bucket_fill(ipt.x(), ipt.y())
                 return
 
             if self._tool == TOOL_EYEDROPPER:

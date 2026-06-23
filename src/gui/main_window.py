@@ -36,6 +36,7 @@ from ..core.processor import _save_png  # 复用保存逻辑
 from .widgets import (
     IMAGE_EXTS,
     TOOL_BRUSH,
+    TOOL_BUCKET,
     TOOL_EYEDROPPER,
     TOOL_ERASER,
     TOOL_MAGIC,
@@ -255,6 +256,11 @@ class MainWindow(QMainWindow):
             "Shift+点击 加选 / Alt+点击 减选\n"
             "选完按右侧「反选填充蒙版」(Ctrl+I)"
         )
+        self.btn_tool_bucket = QPushButton("🪣 油漆桶")
+        self.btn_tool_bucket.setToolTip(
+            "油漆桶：点击封闭区域内部，一键填充保护蒙版\n"
+            "适合配合画笔围出区域后快速填满"
+        )
         self.btn_tool_eyedropper = QPushButton("🧪 吸管")
         self.btn_tool_eyedropper.setToolTip(
             "吸管：在原图上点击吸取背景色\n"
@@ -267,6 +273,7 @@ class MainWindow(QMainWindow):
             self.btn_tool_rect_brush,
             self.btn_tool_rect_eraser,
             self.btn_tool_magic,
+            self.btn_tool_bucket,
             self.btn_tool_eyedropper,
         ):
             b.setCheckable(True)
@@ -279,6 +286,7 @@ class MainWindow(QMainWindow):
         self.btn_tool_rect_brush.clicked.connect(lambda: self._set_tool(TOOL_RECT_BRUSH))
         self.btn_tool_rect_eraser.clicked.connect(lambda: self._set_tool(TOOL_RECT_ERASER))
         self.btn_tool_magic.clicked.connect(lambda: self._set_tool(TOOL_MAGIC))
+        self.btn_tool_bucket.clicked.connect(lambda: self._set_tool(TOOL_BUCKET))
         self.btn_tool_eyedropper.clicked.connect(
             lambda: self._set_tool(TOOL_EYEDROPPER)
         )
@@ -288,6 +296,7 @@ class MainWindow(QMainWindow):
         tb.addWidget(self.btn_tool_rect_brush)
         tb.addWidget(self.btn_tool_rect_eraser)
         tb.addWidget(self.btn_tool_magic)
+        tb.addWidget(self.btn_tool_bucket)
         tb.addWidget(self.btn_tool_eyedropper)
 
         tb.addSpacing(10)
@@ -876,6 +885,7 @@ class MainWindow(QMainWindow):
         self.btn_tool_rect_brush.setChecked(tool == TOOL_RECT_BRUSH)
         self.btn_tool_rect_eraser.setChecked(tool == TOOL_RECT_ERASER)
         self.btn_tool_magic.setChecked(tool == TOOL_MAGIC)
+        self.btn_tool_bucket.setChecked(tool == TOOL_BUCKET)
         self.btn_tool_eyedropper.setChecked(tool == TOOL_EYEDROPPER)
         msgs = {
             TOOL_BRUSH: "保护画笔：在原图上涂抹要保留的区域",
@@ -883,6 +893,7 @@ class MainWindow(QMainWindow):
             TOOL_RECT_BRUSH: "框选画笔：拖动一个矩形 → 内部全部保护",
             TOOL_RECT_ERASER: "框选橡皮：拖动一个矩形 → 内部全部清除",
             TOOL_MAGIC: "魔棒：点击选中黑色背景；Shift 加选 / Alt 减选；Ctrl+I 反选填充蒙版",
+            TOOL_BUCKET: "油漆桶：点击封闭区域内部，一键填充保护蒙版",
             TOOL_EYEDROPPER: "吸管：点击原图吸取背景色（用于吸管背景色 / 背景色键控算法）",
             TOOL_NONE: "浏览模式（滚轮缩放，中键拖动平移）",
         }
