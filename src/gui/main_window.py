@@ -250,15 +250,15 @@ class MainWindow(QMainWindow):
         self.btn_tool_none = QPushButton("👆 选择")
         self.btn_tool_brush = QPushButton("🖌 画笔")
         self.btn_tool_eraser = QPushButton("🧽 橡皮")
-        self.btn_tool_rect_brush = QPushButton("▭ 框选画笔")
-        self.btn_tool_rect_eraser = QPushButton("▭ 框选橡皮")
+        self.btn_tool_rect_brush = QPushButton("▭ 框选笔")
+        self.btn_tool_rect_eraser = QPushButton("▭ 框选橡")
         self.btn_tool_magic = QPushButton("🪄 魔棒")
         self.btn_tool_magic.setToolTip(
             "魔棒：点击图中黑色背景区域\n"
             "自动反转为前景并写入保护蒙版\n"
             "Shift+点击 加选 / Alt+点击 减选"
         )
-        self.btn_tool_bucket = QPushButton("🪣 油漆桶")
+        self.btn_tool_bucket = QPushButton("🪣 桶填充")
         self.btn_tool_bucket.setToolTip(
             "油漆桶：点击封闭区域内部，一键填充保护蒙版\n"
             "适合配合画笔围出区域后快速填满"
@@ -352,21 +352,7 @@ class MainWindow(QMainWindow):
 
         tb.addStretch(1)
 
-        # 视图缩放
-        self.btn_zoom_out = QPushButton("－")
-        self.btn_zoom_in = QPushButton("＋")
-        self.btn_zoom_fit = QPushButton("适配")
-        for b in (self.btn_zoom_out, self.btn_zoom_in, self.btn_zoom_fit):
-            b.setFixedWidth(40)
-        self.btn_zoom_out.clicked.connect(lambda: self.src_view.zoom_out())
-        self.btn_zoom_in.clicked.connect(lambda: self.src_view.zoom_in())
-        self.btn_zoom_fit.clicked.connect(lambda: self.src_view.fit_view())
-        tb.addWidget(QLabel("视图："))
-        tb.addWidget(self.btn_zoom_out)
-        tb.addWidget(self.btn_zoom_in)
-        tb.addWidget(self.btn_zoom_fit)
-
-        ll.addWidget(_wrap_in_hscroll(tool_bar))
+        ll.addWidget(tool_bar)
         ll.addWidget(self.src_view, 1)
         split.addWidget(left)
 
@@ -497,8 +483,8 @@ class MainWindow(QMainWindow):
         self.param_box = QWidget()
         self.param_grid = QGridLayout(self.param_box)
         self.param_grid.setContentsMargins(4, 0, 4, 0)
-        self.param_grid.setHorizontalSpacing(12)
-        self.param_grid.setVerticalSpacing(4)
+        self.param_grid.setHorizontalSpacing(16)
+        self.param_grid.setVerticalSpacing(6)
 
         param_scroll = QScrollArea()
         param_scroll.setWidget(self.param_box)
@@ -507,7 +493,7 @@ class MainWindow(QMainWindow):
         param_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         param_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         param_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        param_scroll.setFixedHeight(88)
+        param_scroll.setFixedHeight(100)
         param_group_layout.addWidget(param_scroll)
         ctrl_layout.addWidget(param_group, 1)
 
@@ -550,6 +536,24 @@ class MainWindow(QMainWindow):
         template_hl.addWidget(self.template_combo)
         template_hl.addWidget(self.btn_save_template)
         global_layout.addWidget(template_row)
+
+        # 视图缩放（从顶部工具栏移下来，避免工具栏过宽）
+        zoom_row = QWidget()
+        zoom_hl = QHBoxLayout(zoom_row)
+        zoom_hl.setContentsMargins(0, 0, 0, 0)
+        self.btn_zoom_out = QPushButton("－")
+        self.btn_zoom_in = QPushButton("＋")
+        self.btn_zoom_fit = QPushButton("适配")
+        for b in (self.btn_zoom_out, self.btn_zoom_in, self.btn_zoom_fit):
+            b.setFixedWidth(40)
+        self.btn_zoom_out.clicked.connect(lambda: self.src_view.zoom_out())
+        self.btn_zoom_in.clicked.connect(lambda: self.src_view.zoom_in())
+        self.btn_zoom_fit.clicked.connect(lambda: self.src_view.fit_view())
+        zoom_hl.addWidget(QLabel("视图："))
+        zoom_hl.addWidget(self.btn_zoom_out)
+        zoom_hl.addWidget(self.btn_zoom_in)
+        zoom_hl.addWidget(self.btn_zoom_fit)
+        global_layout.addWidget(zoom_row)
 
         ctrl_layout.addWidget(global_group)
 
@@ -699,7 +703,7 @@ class MainWindow(QMainWindow):
             hl.setSpacing(4)
             lbl = QLabel(spec["label"] + "：")
             lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            lbl.setFixedWidth(74)
+            lbl.setFixedWidth(92)
             hl.addWidget(lbl)
             hl.addWidget(slider, 1)
             hl.addWidget(value_lbl)
