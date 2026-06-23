@@ -1,0 +1,85 @@
+111 INFO: PyInstaller: 6.20.0, contrib hooks: 2026.5
+111 INFO: Python: 3.12.10
+127 INFO: Platform: Windows-11-10.0.26200-SP0
+127 INFO: Python environment: C:\Users\lijialin08\AppData\Local\Programs\Python\Python312
+127 INFO: wrote d:\WORKS\Win Project\RemoveBlack\RemoveBlack.spec
+131 INFO: Module search paths (PYTHONPATH):
+['d:\\WORKS\\Win Project\\RemoveBlack',
+ 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages',
+ 'd:\\WORKS\\Win Project\\RemoveBlack']
+414 INFO: Appending 'datas' from .spec
+415 INFO: checking Analysis
+436 INFO: Building because d:\WORKS\Win Project\RemoveBlack\src\gui\main_window.py changed
+436 INFO: Looking for Python shared library...
+436 INFO: Using Python shared library: C:\Users\lijialin08\AppData\Local\Programs\Python\Python312\python312.dll
+436 INFO: Running Analysis Analysis-00.toc
+436 INFO: Target bytecode optimization level: 0
+436 INFO: Initializing module dependency graph...
+437 INFO: Initializing module graph hook caches...
+449 INFO: Analyzing modules for base_library.zip ...
+1189 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+1237 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+2193 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+3059 INFO: Caching module dependency graph...
+3097 INFO: Analyzing d:\WORKS\Win Project\RemoveBlack\run_gui.py
+3174 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+3721 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+3929 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+4073 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+4373 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+5032 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+5099 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+6050 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+6052 INFO: SetuptoolsInfo: initializing cached setuptools info...
+7056 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+7115 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+7450 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+7648 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+7833 INFO: Processing standard module hook 'hook-PySide6.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+7972 INFO: Processing standard module hook 'hook-shiboken6.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+8113 INFO: Processing standard module hook 'hook-PySide6.QtNetwork.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+10269 INFO: Processing standard module hook 'hook-PySide6.QtCore.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+13562 INFO: Processing standard module hook 'hook-PySide6.QtGui.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+28075 INFO: Processing standard module hook 'hook-PySide6.QtWidgets.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+31006 INFO: Processing module hooks (post-graph stage)...
+31256 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+31310 INFO: Performing binary vs. data reclassification (123 entries)
+31369 INFO: Looking for ctypes DLLs
+31411 INFO: Analyzing run-time hooks ...
+31413 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+31415 INFO: Including run-time hook 'pyi_rth_pyside6.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+31417 INFO: Processing pre-find-module-path hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+31418 INFO: Processing standard module hook 'hook-_pyi_rth_utils.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+31422 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+31424 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+31438 INFO: Creating base_library.zip...
+31457 INFO: Looking for dynamic libraries
+31962 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\shiboken6', 'C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\numpy.libs']
+31962 INFO: Extra DLL search directories (PATH): ['C:\\Users\\lijialin08\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PySide6']
+34628 INFO: Warnings written to d:\WORKS\Win Project\RemoveBlack\build\RemoveBlack\warn-RemoveBlack.txt
+34674 INFO: Graph cross-reference written to d:\WORKS\Win Project\RemoveBlack\build\RemoveBlack\xref-RemoveBlack.html
+34705 INFO: checking PYZ
+34765 INFO: Building because d:\WORKS\Win Project\RemoveBlack\src\gui\main_window.py changed
+34765 INFO: Building PYZ (ZlibArchive) d:\WORKS\Win Project\RemoveBlack\build\RemoveBlack\PYZ-00.pyz
+35247 INFO: Building PYZ (ZlibArchive) d:\WORKS\Win Project\RemoveBlack\build\RemoveBlack\PYZ-00.pyz completed successfully.
+35263 INFO: checking PKG
+35274 INFO: Building because toc changed
+35274 INFO: Building PKG (CArchive) RemoveBlack.pkg
+53256 INFO: Building PKG (CArchive) RemoveBlack.pkg completed successfully.
+53261 INFO: Bootloader C:\Users\lijialin08\AppData\Local\Programs\Python\Python312\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+53261 INFO: checking EXE
+53275 INFO: Building because toc changed
+53275 INFO: Building EXE from EXE-00.toc
+53282 INFO: Copying bootloader EXE to d:\WORKS\Win Project\RemoveBlack\dist\RemoveBlack.exe
+53325 INFO: Copying icon to EXE
+53358 INFO: Copying version information to EXE
+53382 INFO: Copying 0 resources to EXE
+53382 INFO: Embedding manifest in EXE
+53417 INFO: Appending PKG archive to EXE
+53507 INFO: Fixing EXE headers
+56814 INFO: Building EXE from EXE-00.toc completed successfully.
+56820 INFO: Build complete! The results are available in: d:\WORKS\Win Project\RemoveBlack\dist
