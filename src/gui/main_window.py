@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QSlider,
     QSplitter,
     QStatusBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -171,7 +172,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(
             f"RemoveBlack v{APP_VERSION} — 图片去黑底工具  ·  临江路软件出品"
         )
-        self.resize(1180, 720)
+        self.resize(1320, 760)
 
         # 窗口图标（标题栏 + 任务栏）
         from ..app import resource_path
@@ -207,7 +208,9 @@ class MainWindow(QMainWindow):
         if self._first_show:
             self._first_show = False
             w = max(800, self.width())
-            self._splitter.setSizes([w // 2, w // 2])
+            # 左侧给工具栏留更宽空间
+            left_w = max(660, w // 2)
+            self._splitter.setSizes([left_w, w - left_w])
 
     # ------------------------------------------------------------------
     # UI 构建
@@ -247,23 +250,31 @@ class MainWindow(QMainWindow):
         tb.setContentsMargins(6, 4, 6, 4)
         tb.setSpacing(4)
 
-        self.btn_tool_none = QPushButton("👆 选择")
-        self.btn_tool_brush = QPushButton("🖌 画笔")
-        self.btn_tool_eraser = QPushButton("🧽 橡皮")
-        self.btn_tool_rect_brush = QPushButton("▭ 框选画笔")
-        self.btn_tool_rect_eraser = QPushButton("▭ 框选橡皮")
-        self.btn_tool_magic = QPushButton("🪄 魔棒")
+        self.btn_tool_none = QToolButton()
+        self.btn_tool_none.setText("👆 选择")
+        self.btn_tool_brush = QToolButton()
+        self.btn_tool_brush.setText("🖌 画笔")
+        self.btn_tool_eraser = QToolButton()
+        self.btn_tool_eraser.setText("🧽 橡皮")
+        self.btn_tool_rect_brush = QToolButton()
+        self.btn_tool_rect_brush.setText("▭ 框选画笔")
+        self.btn_tool_rect_eraser = QToolButton()
+        self.btn_tool_rect_eraser.setText("▭ 框选橡皮")
+        self.btn_tool_magic = QToolButton()
+        self.btn_tool_magic.setText("🪄 魔棒")
         self.btn_tool_magic.setToolTip(
             "魔棒：点击图中黑色背景区域\n"
             "自动反转为前景并写入保护蒙版\n"
             "Shift+点击 加选 / Alt+点击 减选"
         )
-        self.btn_tool_bucket = QPushButton("🪣 油漆桶")
+        self.btn_tool_bucket = QToolButton()
+        self.btn_tool_bucket.setText("🪣 油漆桶")
         self.btn_tool_bucket.setToolTip(
             "油漆桶：点击封闭区域内部，一键填充保护蒙版\n"
             "适合配合画笔围出区域后快速填满"
         )
-        self.btn_tool_eyedropper = QPushButton("🧪 吸管")
+        self.btn_tool_eyedropper = QToolButton()
+        self.btn_tool_eyedropper.setText("🧪 吸管")
         self.btn_tool_eyedropper.setToolTip(
             "吸管：在原图上点击吸取背景色\n"
             "对「UnMult（吸管背景色）」和「背景色键控」算法生效"
@@ -279,6 +290,8 @@ class MainWindow(QMainWindow):
             self.btn_tool_eyedropper,
         ):
             b.setCheckable(True)
+            b.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            b.setStyleSheet("QToolButton{padding: 3px 6px; margin: 0px;}")
             b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.btn_tool_none.setChecked(True)
         self.btn_tool_none.clicked.connect(lambda: self._set_tool(TOOL_NONE))
@@ -314,41 +327,50 @@ class MainWindow(QMainWindow):
         self.brush_size_slider = QSlider(Qt.Horizontal)
         self.brush_size_slider.setRange(2, 400)
         self.brush_size_slider.setValue(30)
-        self.brush_size_slider.setFixedWidth(100)
+        self.brush_size_slider.setFixedWidth(90)
         self.brush_size_slider.valueChanged.connect(self._on_brush_size_changed)
         self.brush_size_label = QLabel("30")
-        self.brush_size_label.setFixedWidth(32)
+        self.brush_size_label.setFixedWidth(34)
         self.magic_tol_slider = QSlider(Qt.Horizontal)
         self.magic_tol_slider.setRange(0, 128)
         self.magic_tol_slider.setValue(30)
-        self.magic_tol_slider.setFixedWidth(80)
+        self.magic_tol_slider.setFixedWidth(70)
         self.magic_tol_slider.valueChanged.connect(self._on_magic_tol_changed)
         self.magic_tol_label = QLabel("30")
-        self.magic_tol_label.setFixedWidth(28)
+        self.magic_tol_label.setFixedWidth(30)
 
         row_props.addWidget(QLabel("画笔："))
         row_props.addWidget(self.brush_size_slider)
         row_props.addWidget(self.brush_size_label)
+        row_props.addSpacing(12)
         row_props.addWidget(QLabel("魔棒："))
         row_props.addWidget(self.magic_tol_slider)
         row_props.addWidget(self.magic_tol_label)
 
-        row_props.addSpacing(16)
+        row_props.addSpacing(20)
 
-        self.btn_invert_mask = QPushButton("⤺ 反选")
+        self.btn_invert_mask = QToolButton()
+        self.btn_invert_mask.setText("⤺ 反选")
         self.btn_invert_mask.setToolTip(
             "把当前保护蒙版 0↔255 翻转\n"
             "快捷键 Ctrl+I"
         )
         self.btn_invert_mask.clicked.connect(self._on_invert_mask)
-        self.btn_undo = QPushButton("↶ 撤销")
-        self.btn_redo = QPushButton("↷ 重做")
+        self.btn_undo = QToolButton()
+        self.btn_undo.setText("↶ 撤销")
+        self.btn_redo = QToolButton()
+        self.btn_redo.setText("↷ 重做")
         self.btn_undo.setEnabled(False)
         self.btn_redo.setEnabled(False)
         self.btn_undo.clicked.connect(self._on_undo)
         self.btn_redo.clicked.connect(self._on_redo)
-        self.btn_clear_mask = QPushButton("清空蒙版")
+        self.btn_clear_mask = QToolButton()
+        self.btn_clear_mask.setText("清空蒙版")
         self.btn_clear_mask.clicked.connect(self._on_clear_mask)
+        for b in (self.btn_invert_mask, self.btn_undo, self.btn_redo, self.btn_clear_mask):
+            b.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            b.setStyleSheet("QToolButton{padding: 3px 6px; margin: 0px;}")
+            b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         row_props.addWidget(self.btn_invert_mask)
         row_props.addWidget(self.btn_undo)
