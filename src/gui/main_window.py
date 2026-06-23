@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
+    QGroupBox,
     QInputDialog,
     QHBoxLayout,
     QLabel,
@@ -239,10 +241,10 @@ class MainWindow(QMainWindow):
         ll.setContentsMargins(4, 4, 4, 4)
         ll.addWidget(QLabel("原图（可在此处涂抹保护区域）"))
 
-        # 工具栏
+        # 工具栏（分组：工具 | 工具属性 | 选区操作 | 视图）
         tool_bar = QWidget()
         tb = QHBoxLayout(tool_bar)
-        tb.setContentsMargins(0, 0, 0, 0)
+        tb.setContentsMargins(6, 4, 6, 4)
         tb.setSpacing(4)
 
         self.btn_tool_none = QPushButton("👆 选择")
@@ -254,7 +256,7 @@ class MainWindow(QMainWindow):
         self.btn_tool_magic.setToolTip(
             "魔棒：点击选中黑色背景区域\n"
             "Shift+点击 加选 / Alt+点击 减选\n"
-            "选完按右侧「反选填充蒙版」(Ctrl+I)"
+            "选完按「反选填充蒙版」(Ctrl+I)"
         )
         self.btn_tool_bucket = QPushButton("🪣 油漆桶")
         self.btn_tool_bucket.setToolTip(
@@ -277,7 +279,6 @@ class MainWindow(QMainWindow):
             self.btn_tool_eyedropper,
         ):
             b.setCheckable(True)
-            # 关键：按钮按 sizeHint 取宽度，不被布局挤扁
             b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.btn_tool_none.setChecked(True)
         self.btn_tool_none.clicked.connect(lambda: self._set_tool(TOOL_NONE))
@@ -290,6 +291,8 @@ class MainWindow(QMainWindow):
         self.btn_tool_eyedropper.clicked.connect(
             lambda: self._set_tool(TOOL_EYEDROPPER)
         )
+
+        tb.addWidget(QLabel("工具："))
         tb.addWidget(self.btn_tool_none)
         tb.addWidget(self.btn_tool_brush)
         tb.addWidget(self.btn_tool_eraser)
@@ -299,65 +302,66 @@ class MainWindow(QMainWindow):
         tb.addWidget(self.btn_tool_bucket)
         tb.addWidget(self.btn_tool_eyedropper)
 
-        tb.addSpacing(10)
-        tb.addWidget(QLabel("画笔："))
+        tb.addSpacing(16)
+
+        # 工具属性
         self.brush_size_slider = QSlider(Qt.Horizontal)
         self.brush_size_slider.setRange(2, 400)
         self.brush_size_slider.setValue(30)
-        self.brush_size_slider.setFixedWidth(120)
+        self.brush_size_slider.setFixedWidth(100)
         self.brush_size_slider.valueChanged.connect(self._on_brush_size_changed)
-        tb.addWidget(self.brush_size_slider)
         self.brush_size_label = QLabel("30")
-        self.brush_size_label.setFixedWidth(36)
-        tb.addWidget(self.brush_size_label)
-
-        tb.addSpacing(10)
-        tb.addWidget(QLabel("魔棒容差："))
+        self.brush_size_label.setFixedWidth(32)
         self.magic_tol_slider = QSlider(Qt.Horizontal)
         self.magic_tol_slider.setRange(0, 128)
         self.magic_tol_slider.setValue(30)
-        self.magic_tol_slider.setFixedWidth(100)
+        self.magic_tol_slider.setFixedWidth(80)
         self.magic_tol_slider.valueChanged.connect(self._on_magic_tol_changed)
-        tb.addWidget(self.magic_tol_slider)
         self.magic_tol_label = QLabel("30")
         self.magic_tol_label.setFixedWidth(28)
+
+        tb.addWidget(QLabel("画笔："))
+        tb.addWidget(self.brush_size_slider)
+        tb.addWidget(self.brush_size_label)
+        tb.addWidget(QLabel("魔棒："))
+        tb.addWidget(self.magic_tol_slider)
         tb.addWidget(self.magic_tol_label)
 
+        tb.addSpacing(16)
+
+        # 选区操作
         self.btn_invert_to_mask = QPushButton("⤺ 反选填充")
         self.btn_invert_to_mask.setToolTip(
             "把魔棒选中的「背景区域」反选 → 填进保护蒙版（前景全保留）\n"
             "快捷键 Ctrl+I"
         )
         self.btn_invert_to_mask.clicked.connect(self._on_invert_selection)
-        tb.addWidget(self.btn_invert_to_mask)
-
-        tb.addSpacing(10)
-        # 撤销 / 重做
         self.btn_undo = QPushButton("↶ 撤销")
         self.btn_redo = QPushButton("↷ 重做")
         self.btn_undo.setEnabled(False)
         self.btn_redo.setEnabled(False)
         self.btn_undo.clicked.connect(self._on_undo)
         self.btn_redo.clicked.connect(self._on_redo)
-        tb.addWidget(self.btn_undo)
-        tb.addWidget(self.btn_redo)
-
-        tb.addSpacing(10)
         self.btn_clear_mask = QPushButton("清空蒙版")
         self.btn_clear_mask.clicked.connect(self._on_clear_mask)
+
+        tb.addWidget(self.btn_invert_to_mask)
+        tb.addWidget(self.btn_undo)
+        tb.addWidget(self.btn_redo)
         tb.addWidget(self.btn_clear_mask)
 
         tb.addStretch(1)
 
-        # 缩放控件
+        # 视图缩放
         self.btn_zoom_out = QPushButton("－")
         self.btn_zoom_in = QPushButton("＋")
         self.btn_zoom_fit = QPushButton("适配")
         for b in (self.btn_zoom_out, self.btn_zoom_in, self.btn_zoom_fit):
-            b.setFixedWidth(48)
+            b.setFixedWidth(40)
         self.btn_zoom_out.clicked.connect(lambda: self.src_view.zoom_out())
         self.btn_zoom_in.clicked.connect(lambda: self.src_view.zoom_in())
         self.btn_zoom_fit.clicked.connect(lambda: self.src_view.fit_view())
+        tb.addWidget(QLabel("视图："))
         tb.addWidget(self.btn_zoom_out)
         tb.addWidget(self.btn_zoom_in)
         tb.addWidget(self.btn_zoom_fit)
@@ -427,21 +431,30 @@ class MainWindow(QMainWindow):
         )
         self._splitter = split
 
-        # 控制面板
+        # ------------------------------------------------------------------
+        # 控制面板（分组：算法与操作 | 算法参数 | 全局与模板）
+        # ------------------------------------------------------------------
         ctrl = QWidget()
+        ctrl.setStyleSheet(
+            "QGroupBox{font-weight:bold;border:1px solid #bbb;border-radius:4px;"
+            "margin-top:6px;padding-top:6px;}"
+            "QGroupBox::title{subcontrol-origin:margin;left:8px;padding:0 4px;}"
+        )
         ctrl_layout = QHBoxLayout(ctrl)
-        ctrl_layout.setContentsMargins(8, 4, 8, 4)
+        ctrl_layout.setContentsMargins(8, 2, 8, 6)
+        ctrl_layout.setSpacing(10)
 
-        # 算法选择
-        algo_box = QWidget()
-        algo_form = QFormLayout(algo_box)
-        algo_form.setContentsMargins(0, 0, 0, 0)
+        # ---- 算法与操作 ----
+        algo_group = QGroupBox("算法与操作")
+        algo_layout = QVBoxLayout(algo_group)
+        algo_layout.setSpacing(6)
+        algo_layout.setContentsMargins(8, 6, 8, 6)
+
         self.algo_combo = QComboBox()
         for key, info in ALGORITHMS.items():
             self.algo_combo.addItem(info["label"], key)
         self.algo_combo.currentIndexChanged.connect(self._on_algo_changed)
-        algo_form.addRow("算法：", self.algo_combo)
-        ctrl_layout.addWidget(algo_box)
+        algo_layout.addWidget(self.algo_combo)
 
         # 吸管颜色预览（对 unmult_color / color_key 显示）
         self.color_preview_box = QWidget()
@@ -449,73 +462,96 @@ class MainWindow(QMainWindow):
         color_preview_hl.setContentsMargins(0, 0, 0, 0)
         color_preview_hl.addWidget(QLabel("吸管颜色："))
         self.color_preview_btn = QPushButton()
-        self.color_preview_btn.setFixedSize(24, 24)
+        self.color_preview_btn.setFixedSize(22, 22)
         self.color_preview_btn.setToolTip("当前吸管吸取的背景色")
         self.color_preview_btn.setEnabled(False)
         color_preview_hl.addWidget(self.color_preview_btn)
         self.color_preview_label = QLabel("—")
         self.color_preview_label.setStyleSheet("color:#666;")
         color_preview_hl.addWidget(self.color_preview_label)
-
+        color_preview_hl.addStretch(1)
         self.color_preview_box.setVisible(False)
-        ctrl_layout.addWidget(self.color_preview_box)
+        algo_layout.addWidget(self.color_preview_box)
 
-        # 参数滑块容器（动态填充）
+        action_layout = QHBoxLayout()
+        self.btn_open = QPushButton("打开图片")
+        self.btn_save = QPushButton("导出 PNG")
+        self.btn_batch = QPushButton("批量处理")
+        self.btn_open.clicked.connect(self._on_open)
+        self.btn_save.clicked.connect(self._on_save)
+        self.btn_batch.clicked.connect(self._on_batch)
+        self.btn_save.setEnabled(False)
+        for b in (self.btn_open, self.btn_save, self.btn_batch):
+            b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            action_layout.addWidget(b)
+        action_layout.addStretch(1)
+        algo_layout.addLayout(action_layout)
+
+        ctrl_layout.addWidget(algo_group)
+
+        # ---- 算法参数（可横向滚动，避免拥挤）----
+        param_group = QGroupBox("算法参数")
+        param_group_layout = QVBoxLayout(param_group)
+        param_group_layout.setContentsMargins(6, 6, 6, 6)
+
         self.param_box = QWidget()
-        self.param_box.setMinimumWidth(260)
-        self.param_form = QFormLayout(self.param_box)
-        self.param_form.setContentsMargins(8, 0, 8, 0)
-        ctrl_layout.addWidget(self.param_box, 1)
+        self.param_grid = QGridLayout(self.param_box)
+        self.param_grid.setContentsMargins(4, 0, 4, 0)
+        self.param_grid.setHorizontalSpacing(12)
+        self.param_grid.setVerticalSpacing(4)
 
-        # —— 透明度下限（始终可见，全图兜底）——
-        floor_box = QWidget()
-        floor_form = QFormLayout(floor_box)
-        floor_form.setContentsMargins(8, 0, 8, 0)
+        param_scroll = QScrollArea()
+        param_scroll.setWidget(self.param_box)
+        param_scroll.setWidgetResizable(True)
+        param_scroll.setFrameShape(QScrollArea.NoFrame)
+        param_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        param_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        param_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        param_scroll.setFixedHeight(88)
+        param_group_layout.addWidget(param_scroll)
+        ctrl_layout.addWidget(param_group, 1)
+
+        # ---- 全局与模板 ----
+        global_group = QGroupBox("全局与模板")
+        global_layout = QVBoxLayout(global_group)
+        global_layout.setSpacing(6)
+        global_layout.setContentsMargins(8, 6, 8, 6)
+
         floor_row = QWidget()
         floor_hl = QHBoxLayout(floor_row)
         floor_hl.setContentsMargins(0, 0, 0, 0)
         self.alpha_floor_slider = QSlider(Qt.Horizontal)
         self.alpha_floor_slider.setRange(0, 255)
         self.alpha_floor_slider.setValue(0)
-        self.alpha_floor_slider.setFixedWidth(140)
+        self.alpha_floor_slider.setFixedWidth(110)
         self.alpha_floor_slider.setTickPosition(QSlider.TicksBelow)
         self.alpha_floor_slider.setTickInterval(32)
         self.alpha_floor_slider.valueChanged.connect(self._on_alpha_floor_changed)
         self.alpha_floor_label = QLabel("0")
-        self.alpha_floor_label.setFixedWidth(36)
+        self.alpha_floor_label.setFixedWidth(28)
         self.alpha_floor_label.setAlignment(Qt.AlignCenter)
+        floor_hl.addWidget(QLabel("透明度下限："))
         floor_hl.addWidget(self.alpha_floor_slider)
         floor_hl.addWidget(self.alpha_floor_label)
-        floor_form.addRow("透明度下限：", floor_row)
-        ctrl_layout.addWidget(floor_box)
+        global_layout.addWidget(floor_row)
 
-        # 参数模板：保存在本机程序配置里，便于复用常用参数
-        template_box = QWidget()
-        template_hl = QHBoxLayout(template_box)
-        template_hl.setContentsMargins(8, 0, 8, 0)
+        template_row = QWidget()
+        template_hl = QHBoxLayout(template_row)
+        template_hl.setContentsMargins(0, 0, 0, 0)
         template_hl.addWidget(QLabel("模板："))
         self.template_combo = QComboBox()
-        self.template_combo.setFixedWidth(120)
+        self.template_combo.setFixedWidth(100)
         self.template_combo.addItem("选择模板…", "")
         self._refresh_template_combo()
         self.template_combo.activated.connect(self._on_template_selected)
-        self.btn_save_template = QPushButton("保存模板")
+        self.btn_save_template = QPushButton("保存")
+        self.btn_save_template.setToolTip("保存当前算法与参数为模板")
         self.btn_save_template.clicked.connect(self._on_save_template)
         template_hl.addWidget(self.template_combo)
         template_hl.addWidget(self.btn_save_template)
-        ctrl_layout.addWidget(template_box)
+        global_layout.addWidget(template_row)
 
-        # 按钮
-        self.btn_open = QPushButton("打开图片…")
-        self.btn_save = QPushButton("导出 PNG…")
-        self.btn_batch = QPushButton("批量处理文件夹…")
-        self.btn_open.clicked.connect(self._on_open)
-        self.btn_save.clicked.connect(self._on_save)
-        self.btn_batch.clicked.connect(self._on_batch)
-        self.btn_save.setEnabled(False)
-        ctrl_layout.addWidget(self.btn_open)
-        ctrl_layout.addWidget(self.btn_save)
-        ctrl_layout.addWidget(self.btn_batch)
+        ctrl_layout.addWidget(global_group)
 
         # 总布局
         central = QWidget()
@@ -619,22 +655,25 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _on_algo_changed(self, index: int) -> None:
         # 清空旧参数控件
-        while self.param_form.rowCount():
-            self.param_form.removeRow(0)
+        while self.param_grid.count():
+            item = self.param_grid.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
         self._param_widgets.clear()
         self._param_labels.clear()
 
         key = self.algo_combo.itemData(index)
         info = ALGORITHMS[key]
 
-        for spec in info["params"]:
+        for i, spec in enumerate(info["params"]):
             scale = spec.get("scale", 1)  # >1 表示 slider 是浮点放大版
 
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(spec["min"])
             slider.setMaximum(spec["max"])
             slider.setValue(spec["default"])
-            slider.setMinimumWidth(120)
+            slider.setMinimumWidth(90)
+            slider.setMaximumWidth(140)
             slider.setTickPosition(QSlider.TicksBelow)
             slider.setTickInterval(max(1, (spec["max"] - spec["min"]) // 8))
 
@@ -642,14 +681,8 @@ class MainWindow(QMainWindow):
                 return f"{v / s:.2f}" if s > 1 else str(v)
 
             value_lbl = QLabel(_fmt(spec["default"]))
-            value_lbl.setFixedWidth(44)
+            value_lbl.setFixedWidth(40)
             value_lbl.setAlignment(Qt.AlignCenter)
-
-            row = QWidget()
-            hl = QHBoxLayout(row)
-            hl.setContentsMargins(0, 0, 0, 0)
-            hl.addWidget(slider, 1)
-            hl.addWidget(value_lbl)
 
             slider.valueChanged.connect(
                 lambda v, lbl=value_lbl, fmt=_fmt: (
@@ -657,13 +690,27 @@ class MainWindow(QMainWindow):
                     self._refresh_preview(),
                 )
             )
-            self.param_form.addRow(spec["label"] + "：", row)
+
+            # 两列网格：每格 = 标签 + 滑条 + 数值
+            row, col = divmod(i, 2)
+            cell = QWidget()
+            hl = QHBoxLayout(cell)
+            hl.setContentsMargins(0, 0, 0, 0)
+            hl.setSpacing(4)
+            lbl = QLabel(spec["label"] + "：")
+            lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            lbl.setFixedWidth(74)
+            hl.addWidget(lbl)
+            hl.addWidget(slider, 1)
+            hl.addWidget(value_lbl)
+            self.param_grid.addWidget(cell, row, col)
+
             self._param_widgets[spec["name"]] = slider
             self._param_labels[spec["name"]] = value_lbl
             # 把 scale 挂在 slider 上方便 _current_params 读取
             slider.setProperty("rb_scale", scale)
 
-        # —— chroma 算法两个滑块联动锁定，避免 upper <= lower 抛错 ——
+        # —— chroma/color_key 算法两个滑块联动锁定，避免 upper <= lower 抛错 ——
         if "lower" in self._param_widgets and "upper" in self._param_widgets:
             lo = self._param_widgets["lower"]
             up = self._param_widgets["upper"]
