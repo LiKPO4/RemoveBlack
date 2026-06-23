@@ -241,24 +241,24 @@ class MainWindow(QMainWindow):
         ll.setContentsMargins(4, 4, 4, 4)
         ll.addWidget(QLabel("原图（可在此处涂抹保护区域）"))
 
-        # 工具栏（分组：工具 | 工具属性 | 选区操作 | 视图）
+        # 工具栏（两行：第一行工具按钮，第二行属性与操作）
         tool_bar = QWidget()
-        tb = QHBoxLayout(tool_bar)
+        tb = QVBoxLayout(tool_bar)
         tb.setContentsMargins(6, 4, 6, 4)
         tb.setSpacing(4)
 
         self.btn_tool_none = QPushButton("👆 选择")
         self.btn_tool_brush = QPushButton("🖌 画笔")
         self.btn_tool_eraser = QPushButton("🧽 橡皮")
-        self.btn_tool_rect_brush = QPushButton("▭ 框选笔")
-        self.btn_tool_rect_eraser = QPushButton("▭ 框选橡")
+        self.btn_tool_rect_brush = QPushButton("▭ 框选画笔")
+        self.btn_tool_rect_eraser = QPushButton("▭ 框选橡皮")
         self.btn_tool_magic = QPushButton("🪄 魔棒")
         self.btn_tool_magic.setToolTip(
             "魔棒：点击图中黑色背景区域\n"
             "自动反转为前景并写入保护蒙版\n"
             "Shift+点击 加选 / Alt+点击 减选"
         )
-        self.btn_tool_bucket = QPushButton("🪣 桶填充")
+        self.btn_tool_bucket = QPushButton("🪣 油漆桶")
         self.btn_tool_bucket.setToolTip(
             "油漆桶：点击封闭区域内部，一键填充保护蒙版\n"
             "适合配合画笔围出区域后快速填满"
@@ -292,19 +292,25 @@ class MainWindow(QMainWindow):
             lambda: self._set_tool(TOOL_EYEDROPPER)
         )
 
-        tb.addWidget(QLabel("工具："))
-        tb.addWidget(self.btn_tool_none)
-        tb.addWidget(self.btn_tool_brush)
-        tb.addWidget(self.btn_tool_eraser)
-        tb.addWidget(self.btn_tool_rect_brush)
-        tb.addWidget(self.btn_tool_rect_eraser)
-        tb.addWidget(self.btn_tool_magic)
-        tb.addWidget(self.btn_tool_bucket)
-        tb.addWidget(self.btn_tool_eyedropper)
+        # 第一行：工具
+        row_tools = QHBoxLayout()
+        row_tools.setSpacing(4)
+        row_tools.addWidget(QLabel("工具："))
+        row_tools.addWidget(self.btn_tool_none)
+        row_tools.addWidget(self.btn_tool_brush)
+        row_tools.addWidget(self.btn_tool_eraser)
+        row_tools.addWidget(self.btn_tool_rect_brush)
+        row_tools.addWidget(self.btn_tool_rect_eraser)
+        row_tools.addWidget(self.btn_tool_magic)
+        row_tools.addWidget(self.btn_tool_bucket)
+        row_tools.addWidget(self.btn_tool_eyedropper)
+        row_tools.addStretch(1)
+        tb.addLayout(row_tools)
 
-        tb.addSpacing(16)
+        # 第二行：工具属性 + 选区操作
+        row_props = QHBoxLayout()
+        row_props.setSpacing(4)
 
-        # 工具属性
         self.brush_size_slider = QSlider(Qt.Horizontal)
         self.brush_size_slider.setRange(2, 400)
         self.brush_size_slider.setValue(30)
@@ -320,16 +326,15 @@ class MainWindow(QMainWindow):
         self.magic_tol_label = QLabel("30")
         self.magic_tol_label.setFixedWidth(28)
 
-        tb.addWidget(QLabel("画笔："))
-        tb.addWidget(self.brush_size_slider)
-        tb.addWidget(self.brush_size_label)
-        tb.addWidget(QLabel("魔棒："))
-        tb.addWidget(self.magic_tol_slider)
-        tb.addWidget(self.magic_tol_label)
+        row_props.addWidget(QLabel("画笔："))
+        row_props.addWidget(self.brush_size_slider)
+        row_props.addWidget(self.brush_size_label)
+        row_props.addWidget(QLabel("魔棒："))
+        row_props.addWidget(self.magic_tol_slider)
+        row_props.addWidget(self.magic_tol_label)
 
-        tb.addSpacing(16)
+        row_props.addSpacing(16)
 
-        # 选区操作
         self.btn_invert_mask = QPushButton("⤺ 反选")
         self.btn_invert_mask.setToolTip(
             "把当前保护蒙版 0↔255 翻转\n"
@@ -345,12 +350,12 @@ class MainWindow(QMainWindow):
         self.btn_clear_mask = QPushButton("清空蒙版")
         self.btn_clear_mask.clicked.connect(self._on_clear_mask)
 
-        tb.addWidget(self.btn_invert_mask)
-        tb.addWidget(self.btn_undo)
-        tb.addWidget(self.btn_redo)
-        tb.addWidget(self.btn_clear_mask)
-
-        tb.addStretch(1)
+        row_props.addWidget(self.btn_invert_mask)
+        row_props.addWidget(self.btn_undo)
+        row_props.addWidget(self.btn_redo)
+        row_props.addWidget(self.btn_clear_mask)
+        row_props.addStretch(1)
+        tb.addLayout(row_props)
 
         ll.addWidget(tool_bar)
         ll.addWidget(self.src_view, 1)
