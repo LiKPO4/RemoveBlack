@@ -8,7 +8,7 @@ from typing import Optional
 
 import numpy as np
 from PIL import Image
-from PySide6.QtCore import QSettings, Qt, QThread, Signal
+from PySide6.QtCore import QSettings, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QColor, QIcon, QImage, QClipboard
 from PySide6.QtWidgets import (
     QApplication,
@@ -187,6 +187,12 @@ class MainWindow(QMainWindow):
         self._param_labels: dict[str, QLabel] = {}
         self._settings = QSettings("LinjiangRoad", "RemoveBlack")
         self._templates: dict[str, dict] = self._load_templates()
+
+        # 预览刷新防抖定时器：滑块连续拖动时只算一次，避免主线程卡顿
+        self._preview_timer = QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.timeout.connect(self._refresh_preview)
+        self._preview_delay_ms = 80
 
         self._build_ui()
         self._build_menu()
@@ -725,7 +731,7 @@ class MainWindow(QMainWindow):
             slider.valueChanged.connect(
                 lambda v, lbl=value_lbl, fmt=_fmt: (
                     lbl.setText(fmt(v)),
-                    self._refresh_preview(),
+                    self._schedule_preview_refresh(),
                 )
             )
 
@@ -785,6 +791,11 @@ class MainWindow(QMainWindow):
         self.algo_combo.setToolTip(info.get("tooltip", ""))
 
         self._refresh_preview()
+
+    def _schedule_preview_refresh(self) -> None:
+        """延迟刷新预览：滑块拖动时每动一下都重算会导致严重卡顿。"""
+        self._preview_timer.stop()
+        self._preview_timer.start(self._preview_delay_ms)
 
     def _current_algorithm(self) -> str:
         return self.algo_combo.itemData(self.algo_combo.currentIndex())
@@ -1054,7 +1065,7 @@ class MainWindow(QMainWindow):
 
     def _on_alpha_floor_changed(self, v: int) -> None:
         self.alpha_floor_label.setText(str(v))
-        self._refresh_preview()
+        self._schedule_preview_refresh()
 
     # ---- 撤销 / 重做 / 历史按钮状态 ----
     def _on_undo(self) -> None:
