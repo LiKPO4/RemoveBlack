@@ -55,7 +55,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.5.1"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -454,16 +454,6 @@ class MainWindow(QMainWindow):
         # 启动后后台检查更新
         self._check_for_update()
 
-    def _last_dir(self, key: str) -> str:
-        return self._settings.value(key, "", type=str)
-
-    def _set_last_dir(self, key: str, path: str | os.PathLike) -> None:
-        p = Path(path)
-        if p.is_file():
-            p = p.parent
-        if p.is_dir():
-            self._settings.setValue(key, str(p))
-
         # 状态栏：左侧消息，中间缩放，右侧署名
         self._zoom_label = QLabel("缩放：100%")
         self._zoom_label.setStyleSheet("color:#666;padding:0 12px;")
@@ -475,6 +465,16 @@ class MainWindow(QMainWindow):
         # showEvent 里再 setSizes 一次，避免 splitter 在窗口未渲染时
         # 拿不到真实宽度导致 handle 拖不动
         self._first_show = True
+
+    def _last_dir(self, key: str) -> str:
+        return self._settings.value(key, "", type=str)
+
+    def _set_last_dir(self, key: str, path: str | os.PathLike) -> None:
+        p = Path(path)
+        if p.is_file():
+            p = p.parent
+        if p.is_dir():
+            self._settings.setValue(key, str(p))
 
     def showEvent(self, event) -> None:  # noqa: N802, ANN001
         super().showEvent(event)
