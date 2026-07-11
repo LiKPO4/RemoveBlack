@@ -1,0 +1,55 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
+
+      - name: Build GUI exe
+        run: |
+          python -m PyInstaller `
+            --noconfirm --clean `
+            --onefile --windowed `
+            --name RemoveBlack `
+            --icon assets\icon.ico `
+            --version-file version_info.txt `
+            --add-data "assets\icon.ico;assets" `
+            --hidden-import PySide6.QtCore `
+            --hidden-import PySide6.QtGui `
+            --hidden-import PySide6.QtWidgets `
+            run_gui.py
+
+      - name: Create versioned copy
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          Copy-Item dist\RemoveBlack.exe "dist\RemoveBlack-$tag.exe"
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/RemoveBlack.exe
+            dist/RemoveBlack-v*.exe
+          generate_release_notes: false
