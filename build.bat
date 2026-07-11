@@ -2,12 +2,11 @@
 REM ===========================================================
 REM  RemoveBlack 一键打包脚本（Windows）
 REM
-REM  生成两个 exe：
+REM  生成一个 exe：
 REM    dist/RemoveBlack.exe       —— GUI（双击启动；也支持把图片拖到图标）
-REM    dist/RemoveBlack-cli.exe   —— 纯命令行（不弹窗，便于脚本调用）
 REM
-REM  入口指向项目根的 run_gui.py / run_cli.py，
-REM  这两个启动器使用绝对导入，避免 PyInstaller 的相对导入坑。
+REM  入口指向项目根的 run_gui.py，
+REM  该启动器使用绝对导入，避免 PyInstaller 的相对导入坑。
 REM ===========================================================
 
 setlocal EnableDelayedExpansion
@@ -47,13 +46,13 @@ REM ---------- 关掉旧 exe，避免 PermissionError 32 ----------
 taskkill /F /IM RemoveBlack.exe /T >nul 2>nul
 taskkill /F /IM RemoveBlack-cli.exe /T >nul 2>nul
 
-echo [1/3] Installing dependencies...
+echo [1/2] Installing dependencies...
 !PY! -m pip install --upgrade pip --no-compile
 !PY! -m pip install --no-compile -r requirements.txt
 !PY! -m pip install --no-compile pyinstaller
 
 echo.
-echo [2/3] Building GUI (RemoveBlack.exe)...
+echo [2/2] Building GUI (RemoveBlack.exe)...
 !PY! -m PyInstaller ^
     --noconfirm --clean ^
     --onefile --windowed ^
@@ -102,25 +101,8 @@ if errorlevel 1 (
 copy /Y "dist\RemoveBlack.exe" "dist\RemoveBlack-!APP_VERSION!.exe" >nul
 
 echo.
-echo [3/3] Building CLI (RemoveBlack-cli.exe)...
-!PY! -m PyInstaller ^
-    --noconfirm --clean ^
-    --onefile --console ^
-    --name RemoveBlack-cli ^
-    --icon assets\icon.ico ^
-    --version-file version_info.txt ^
-    run_cli.py
-if errorlevel 1 (
-    echo [ERROR] CLI build failed. See output above.
-    exit /b 1
-)
-copy /Y "dist\RemoveBlack-cli.exe" "dist\RemoveBlack-cli-!APP_VERSION!.exe" >nul
-
-echo.
 echo ============================================================
 echo  Done. Output in:  dist\RemoveBlack.exe
 echo                    dist\RemoveBlack-!APP_VERSION!.exe
-echo                    dist\RemoveBlack-cli.exe
-echo                    dist\RemoveBlack-cli-!APP_VERSION!.exe
 echo ============================================================
 endlocal
