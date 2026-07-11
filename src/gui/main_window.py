@@ -55,7 +55,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.5.2"
+APP_VERSION = "1.5.3"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -624,6 +624,8 @@ class MainWindow(QMainWindow):
         row_props.addStretch(1)
         tb.addLayout(row_props)
 
+        # 与右侧底色条保持相同固定高度，确保左右图片区域等高
+        tool_bar.setFixedHeight(72)
         return tool_bar
 
     def _build_ui(self) -> None:
@@ -666,6 +668,7 @@ class MainWindow(QMainWindow):
 
         # 右侧顶部：底色预设条（与左侧工具栏等高）
         bg_bar = QWidget()
+        bg_bar.setFixedHeight(72)
         bg_hl = QHBoxLayout(bg_bar)
         bg_hl.setContentsMargins(0, 0, 0, 0)
         bg_hl.setSpacing(3)
