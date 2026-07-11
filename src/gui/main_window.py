@@ -50,7 +50,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.4.2"
+APP_VERSION = "1.4.3"
 
 # 底色预览预设（10 个常见颜色 + 棋盘）
 BG_PRESETS: list[tuple[str, Optional[tuple[int, int, int]]]] = [
@@ -1210,6 +1210,7 @@ class MainWindow(QMainWindow):
             "<p>核心算法 <b>UnMult</b>：A = max(R,G,B); RGB ÷= A，"
             "合成回黑底视觉零损失。</p>"
             "<p>另含阈值法、颜色键、HSV 去色背景、背景色键控等备选算法。</p>"
+            "<p><b>v1.4.3</b>：拖动参数滑条时采用防抖刷新，解决大图预览卡顿问题。</p>"
             "<p><b>v1.4.2</b>：UI 优化：修复参数标签截断，算法下拉框增加悬停说明；"
             "框选画笔/橡皮改为套索画笔/橡皮。</p>"
             "<p><b>v1.4.1</b>：移除有问题的「前景参考色」，新增「背景色键控（保色）」算法。"

@@ -41,7 +41,7 @@ if not defined PY (
     exit /b 1
 )
 echo Using Python: !PY!
-set "APP_VERSION=v1.4.2"
+set "APP_VERSION=v1.4.3"
 
 REM ---------- 关掉旧 exe，避免 PermissionError 32 ----------
 taskkill /F /IM RemoveBlack.exe /T >nul 2>nul
