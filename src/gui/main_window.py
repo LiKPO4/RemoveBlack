@@ -502,6 +502,22 @@ class MainWindow(QMainWindow):
         action_layout = QHBoxLayout()
         self.btn_open = QPushButton("打开图片")
         self.btn_save = QPushButton("导出 PNG")
+        self.btn_save.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #81c784;"
+            "  color: #1b5e20;"
+            "  border: 1px solid #66bb6a;"
+            "  border-radius: 4px;"
+            "  padding: 4px 10px;"
+            "}"
+            "QPushButton:hover { background-color: #66bb6a; }"
+            "QPushButton:pressed { background-color: #4caf50; }"
+            "QPushButton:disabled {"
+            "  background-color: #c8e6c9;"
+            "  color: #a5d6a7;"
+            "  border-color: #c8e6c9;"
+            "}"
+        )
         self.btn_batch = QPushButton("批量处理")
         self.btn_open.clicked.connect(self._on_open)
         self.btn_save.clicked.connect(self._on_save)
