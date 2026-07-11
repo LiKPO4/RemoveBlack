@@ -48,12 +48,11 @@ from .widgets import (
     TOOL_LASSO_BRUSH,
     TOOL_LASSO_ERASER,
     TOOL_MAGIC,
-    TOOL_NONE,
     DropArea,
     PaintableView,
 )
 
-APP_VERSION = "1.4.8"
+APP_VERSION = "1.4.9"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -441,8 +440,6 @@ class MainWindow(QMainWindow):
         tb.setContentsMargins(6, 4, 6, 4)
         tb.setSpacing(4)
 
-        self.btn_tool_none = QToolButton()
-        self.btn_tool_none.setText("👆 选择")
         self.btn_tool_brush = QToolButton()
         self.btn_tool_brush.setText("🖌 画笔")
         self.btn_tool_eraser = QToolButton()
@@ -471,7 +468,6 @@ class MainWindow(QMainWindow):
             "对「UnMult（吸管背景色）」和「背景色键控」算法生效"
         )
         for b in (
-            self.btn_tool_none,
             self.btn_tool_brush,
             self.btn_tool_eraser,
             self.btn_tool_lasso_brush,
@@ -484,8 +480,7 @@ class MainWindow(QMainWindow):
             b.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
             b.setStyleSheet("QToolButton{padding: 3px 6px; margin: 0px;}")
             b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.btn_tool_none.setChecked(True)
-        self.btn_tool_none.clicked.connect(lambda: self._set_tool(TOOL_NONE))
+        self.btn_tool_brush.setChecked(True)
         self.btn_tool_brush.clicked.connect(lambda: self._set_tool(TOOL_BRUSH))
         self.btn_tool_eraser.clicked.connect(lambda: self._set_tool(TOOL_ERASER))
         self.btn_tool_lasso_brush.clicked.connect(lambda: self._set_tool(TOOL_LASSO_BRUSH))
@@ -495,12 +490,12 @@ class MainWindow(QMainWindow):
         self.btn_tool_eyedropper.clicked.connect(
             lambda: self._set_tool(TOOL_EYEDROPPER)
         )
+        self._set_tool(TOOL_BRUSH)
 
         # 第一行：工具
         row_tools = QHBoxLayout()
         row_tools.setSpacing(4)
         row_tools.addWidget(QLabel("工具："))
-        row_tools.addWidget(self.btn_tool_none)
         row_tools.addWidget(self.btn_tool_brush)
         row_tools.addWidget(self.btn_tool_eraser)
         row_tools.addWidget(self.btn_tool_lasso_brush)
@@ -1304,7 +1299,6 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _set_tool(self, tool: str) -> None:
         self.src_view.set_tool(tool)
-        self.btn_tool_none.setChecked(tool == TOOL_NONE)
         self.btn_tool_brush.setChecked(tool == TOOL_BRUSH)
         self.btn_tool_eraser.setChecked(tool == TOOL_ERASER)
         self.btn_tool_lasso_brush.setChecked(tool == TOOL_LASSO_BRUSH)
@@ -1320,7 +1314,6 @@ class MainWindow(QMainWindow):
             TOOL_MAGIC: "魔棒：点击黑色背景区域；Shift 加选 / Alt 减选；结果直接写入保护蒙版",
             TOOL_BUCKET: "油漆桶：点击封闭区域内部，一键填充保护蒙版",
             TOOL_EYEDROPPER: "吸管：点击原图吸取背景色（用于吸管背景色 / 背景色键控算法）",
-            TOOL_NONE: "浏览模式（滚轮缩放，中键拖动平移）",
         }
         self.statusBar().showMessage(msgs.get(tool, ""))
 
@@ -1536,6 +1529,8 @@ class MainWindow(QMainWindow):
             "<p>核心算法 <b>UnMult</b>：A = max(R,G,B); RGB ÷= A，"
             "合成回黑底视觉零损失。</p>"
             "<p>另含阈值法、颜色键、HSV 去色背景、背景色键控等备选算法。</p>"
+            "<p><b>v1.4.9</b>：移除工具栏中的「选择」工具，默认以画笔启动；"
+            "缩放/平移仍可通过滚轮 / 中键拖动完成。</p>"
             "<p><b>v1.4.8</b>：优化底部三个操作按钮的视觉效果，统一边框、背景与 hover 状态，"
             "避免两侧按钮融入背景。</p>"
             "<p><b>v1.4.7</b>：「检查更新」改为常驻菜单项；无新版时点击提示已是最新，"

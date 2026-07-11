@@ -415,7 +415,7 @@ class PaintableView(DropArea):
         TOOL_MAGIC        魔棒选区（点击背景，反转为前景后写入 _mask）
         TOOL_BUCKET       油漆桶填充（填充封闭区域）
         TOOL_EYEDROPPER   吸管吸取背景色
-        TOOL_NONE         浏览（默认）
+        TOOL_NONE         浏览（内部默认，不显示在工具栏）
 
     撤销 / 重做：
         每次"按下→拖动→松开"算一笔，自动入栈。
