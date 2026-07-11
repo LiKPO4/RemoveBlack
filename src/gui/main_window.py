@@ -53,7 +53,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.4.7"
+APP_VERSION = "1.4.8"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -692,23 +692,46 @@ class MainWindow(QMainWindow):
         # 三个操作按钮统一尺寸；导出按钮用淡雅绿色突出
         btn_common = (
             "QPushButton {"
-            "  border-radius: 4px;"
-            "  border: 1px solid transparent;"
-            "  padding: 4px 10px;"
-            "  min-height: 22px;"
+            "  border-radius: 5px;"
+            "  border: 1px solid #bdbdbd;"
+            "  background-color: #ffffff;"
+            "  color: #424242;"
+            "  padding: 5px 12px;"
+            "  min-height: 24px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #f5f5f5;"
+            "  border-color: #9e9e9e;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: #eeeeee;"
+            "  border-color: #757575;"
+            "}"
+            "QPushButton:disabled {"
+            "  background-color: #fafafa;"
+            "  color: #bdbdbd;"
+            "  border-color: #e0e0e0;"
             "}"
         )
         self.btn_open.setStyleSheet(btn_common)
         self.btn_batch.setStyleSheet(btn_common)
         self.btn_save.setStyleSheet(
-            btn_common
-            + "QPushButton {"
+            "QPushButton {"
+            "  border-radius: 5px;"
+            "  border: 1px solid #aed581;"
             "  background-color: #dcedc8;"
             "  color: #33691e;"
-            "  border: 1px solid #c5e1a5;"
+            "  padding: 5px 12px;"
+            "  min-height: 24px;"
             "}"
-            "QPushButton:hover { background-color: #c5e1a5; }"
-            "QPushButton:pressed { background-color: #aed581; }"
+            "QPushButton:hover {"
+            "  background-color: #c5e1a5;"
+            "  border-color: #9ccc65;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: #aed581;"
+            "  border-color: #7cb342;"
+            "}"
             "QPushButton:disabled {"
             "  background-color: #f1f8e9;"
             "  color: #c5e1a5;"
@@ -1513,6 +1536,8 @@ class MainWindow(QMainWindow):
             "<p>核心算法 <b>UnMult</b>：A = max(R,G,B); RGB ÷= A，"
             "合成回黑底视觉零损失。</p>"
             "<p>另含阈值法、颜色键、HSV 去色背景、背景色键控等备选算法。</p>"
+            "<p><b>v1.4.8</b>：优化底部三个操作按钮的视觉效果，统一边框、背景与 hover 状态，"
+            "避免两侧按钮融入背景。</p>"
             "<p><b>v1.4.7</b>：「检查更新」改为常驻菜单项；无新版时点击提示已是最新，"
             "有新版时菜单项显示红点提示。</p>"
             "<p><b>v1.4.6</b>：新增自动更新检查：启动时检测 GitHub 最新 release，"

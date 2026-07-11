@@ -21,12 +21,12 @@ VSVersionInfo(
           [
             StringStruct(u'CompanyName',      u'临江路软件'),
             StringStruct(u'FileDescription',  u'RemoveBlack — 图片去黑底工具'),
-            StringStruct(u'FileVersion',      u'1.4.7.0'),
+            StringStruct(u'FileVersion',      u'1.4.8.0'),
             StringStruct(u'InternalName',     u'RemoveBlack'),
             StringStruct(u'LegalCopyright',   u'© 临江路软件 出品'),
             StringStruct(u'OriginalFilename', u'RemoveBlack.exe'),
             StringStruct(u'ProductName',      u'RemoveBlack'),
-            StringStruct(u'ProductVersion',   u'1.4.7.0'),
+            StringStruct(u'ProductVersion',   u'1.4.8.0'),
           ]
         )
       ]
