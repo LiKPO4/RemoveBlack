@@ -55,7 +55,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.5.3"
+APP_VERSION = "1.5.4"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -624,7 +624,8 @@ class MainWindow(QMainWindow):
         row_props.addStretch(1)
         tb.addLayout(row_props)
 
-        # 与右侧底色条保持相同固定高度，确保左右图片区域等高
+        # 与右侧顶部区域保持相同固定高度，确保左右图片区域等高
+        tb.addStretch(1)
         tool_bar.setFixedHeight(72)
         return tool_bar
 
@@ -666,9 +667,18 @@ class MainWindow(QMainWindow):
         rl = QVBoxLayout(right)
         rl.setContentsMargins(4, 4, 4, 4)
 
-        # 右侧顶部：底色预设条（与左侧工具栏等高）
+        # 右侧顶部：底色预设条（两行布局，与左侧工具栏自然等高）
+        right_top = QWidget()
+        rt_vl = QVBoxLayout(right_top)
+        rt_vl.setContentsMargins(0, 0, 0, 0)
+        rt_vl.setSpacing(4)
+
+        row_label = QHBoxLayout()
+        row_label.addWidget(QLabel("去黑底预览"))
+        row_label.addStretch(1)
+        rt_vl.addLayout(row_label)
+
         bg_bar = QWidget()
-        bg_bar.setFixedHeight(72)
         bg_hl = QHBoxLayout(bg_bar)
         bg_hl.setContentsMargins(0, 0, 0, 0)
         bg_hl.setSpacing(3)
@@ -703,7 +713,10 @@ class MainWindow(QMainWindow):
         # 默认棋盘
         self._bg_buttons[0].setChecked(True)
         bg_hl.addStretch(1)
-        rl.addWidget(_wrap_in_hscroll(bg_bar))
+        rt_vl.addWidget(_wrap_in_hscroll(bg_bar))
+        rt_vl.addStretch(1)
+        right_top.setFixedHeight(72)
+        rl.addWidget(right_top)
 
         rl.addWidget(self.dst_view, 1)
         # 让两侧 widget 不要因为内容（工具栏、底色条）锁定最小宽度
