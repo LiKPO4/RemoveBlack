@@ -46,9 +46,14 @@ jobs:
           $tag = "${{ github.ref_name }}"
           Copy-Item dist\RemoveBlack.exe "dist\RemoveBlack-$tag.exe"
 
+      - name: Generate release notes from CHANGELOG.md
+        run: |
+          python .github/scripts/generate_release_notes.py ${{ github.ref_name }}
+
       - name: Upload to release
         uses: softprops/action-gh-release@v1
         with:
+          body_path: release_notes.md
           files: |
             dist/RemoveBlack.exe
             dist/RemoveBlack-v*.exe
