@@ -42,10 +42,10 @@ from .widgets import (
     TOOL_BUCKET,
     TOOL_EYEDROPPER,
     TOOL_ERASER,
+    TOOL_LASSO_BRUSH,
+    TOOL_LASSO_ERASER,
     TOOL_MAGIC,
     TOOL_NONE,
-    TOOL_RECT_BRUSH,
-    TOOL_RECT_ERASER,
     DropArea,
     PaintableView,
 )
@@ -256,10 +256,10 @@ class MainWindow(QMainWindow):
         self.btn_tool_brush.setText("🖌 画笔")
         self.btn_tool_eraser = QToolButton()
         self.btn_tool_eraser.setText("🧽 橡皮")
-        self.btn_tool_rect_brush = QToolButton()
-        self.btn_tool_rect_brush.setText("▭ 框选画笔")
-        self.btn_tool_rect_eraser = QToolButton()
-        self.btn_tool_rect_eraser.setText("▭ 框选橡皮")
+        self.btn_tool_lasso_brush = QToolButton()
+        self.btn_tool_lasso_brush.setText("⛓ 套索画笔")
+        self.btn_tool_lasso_eraser = QToolButton()
+        self.btn_tool_lasso_eraser.setText("⛓ 套索橡皮")
         self.btn_tool_magic = QToolButton()
         self.btn_tool_magic.setText("🪄 魔棒")
         self.btn_tool_magic.setToolTip(
@@ -283,8 +283,8 @@ class MainWindow(QMainWindow):
             self.btn_tool_none,
             self.btn_tool_brush,
             self.btn_tool_eraser,
-            self.btn_tool_rect_brush,
-            self.btn_tool_rect_eraser,
+            self.btn_tool_lasso_brush,
+            self.btn_tool_lasso_eraser,
             self.btn_tool_magic,
             self.btn_tool_bucket,
             self.btn_tool_eyedropper,
@@ -297,8 +297,8 @@ class MainWindow(QMainWindow):
         self.btn_tool_none.clicked.connect(lambda: self._set_tool(TOOL_NONE))
         self.btn_tool_brush.clicked.connect(lambda: self._set_tool(TOOL_BRUSH))
         self.btn_tool_eraser.clicked.connect(lambda: self._set_tool(TOOL_ERASER))
-        self.btn_tool_rect_brush.clicked.connect(lambda: self._set_tool(TOOL_RECT_BRUSH))
-        self.btn_tool_rect_eraser.clicked.connect(lambda: self._set_tool(TOOL_RECT_ERASER))
+        self.btn_tool_lasso_brush.clicked.connect(lambda: self._set_tool(TOOL_LASSO_BRUSH))
+        self.btn_tool_lasso_eraser.clicked.connect(lambda: self._set_tool(TOOL_LASSO_ERASER))
         self.btn_tool_magic.clicked.connect(lambda: self._set_tool(TOOL_MAGIC))
         self.btn_tool_bucket.clicked.connect(lambda: self._set_tool(TOOL_BUCKET))
         self.btn_tool_eyedropper.clicked.connect(
@@ -312,8 +312,8 @@ class MainWindow(QMainWindow):
         row_tools.addWidget(self.btn_tool_none)
         row_tools.addWidget(self.btn_tool_brush)
         row_tools.addWidget(self.btn_tool_eraser)
-        row_tools.addWidget(self.btn_tool_rect_brush)
-        row_tools.addWidget(self.btn_tool_rect_eraser)
+        row_tools.addWidget(self.btn_tool_lasso_brush)
+        row_tools.addWidget(self.btn_tool_lasso_eraser)
         row_tools.addWidget(self.btn_tool_magic)
         row_tools.addWidget(self.btn_tool_bucket)
         row_tools.addWidget(self.btn_tool_eyedropper)
@@ -970,16 +970,16 @@ class MainWindow(QMainWindow):
         self.btn_tool_none.setChecked(tool == TOOL_NONE)
         self.btn_tool_brush.setChecked(tool == TOOL_BRUSH)
         self.btn_tool_eraser.setChecked(tool == TOOL_ERASER)
-        self.btn_tool_rect_brush.setChecked(tool == TOOL_RECT_BRUSH)
-        self.btn_tool_rect_eraser.setChecked(tool == TOOL_RECT_ERASER)
+        self.btn_tool_lasso_brush.setChecked(tool == TOOL_LASSO_BRUSH)
+        self.btn_tool_lasso_eraser.setChecked(tool == TOOL_LASSO_ERASER)
         self.btn_tool_magic.setChecked(tool == TOOL_MAGIC)
         self.btn_tool_bucket.setChecked(tool == TOOL_BUCKET)
         self.btn_tool_eyedropper.setChecked(tool == TOOL_EYEDROPPER)
         msgs = {
             TOOL_BRUSH: "保护画笔：在原图上涂抹要保留的区域",
             TOOL_ERASER: "橡皮擦：擦除已涂抹的保护区",
-            TOOL_RECT_BRUSH: "框选画笔：拖动一个矩形 → 内部全部保护",
-            TOOL_RECT_ERASER: "框选橡皮：拖动一个矩形 → 内部全部清除",
+            TOOL_LASSO_BRUSH: "套索画笔：拖动绘制闭合区域 → 内部全部保护",
+            TOOL_LASSO_ERASER: "套索橡皮：拖动绘制闭合区域 → 内部全部清除",
             TOOL_MAGIC: "魔棒：点击黑色背景区域；Shift 加选 / Alt 减选；结果直接写入保护蒙版",
             TOOL_BUCKET: "油漆桶：点击封闭区域内部，一键填充保护蒙版",
             TOOL_EYEDROPPER: "吸管：点击原图吸取背景色（用于吸管背景色 / 背景色键控算法）",

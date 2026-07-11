@@ -25,6 +25,7 @@ from PySide6.QtGui import (
     QPaintEvent,
     QPen,
     QPixmap,
+    QPolygon,
     QWheelEvent,
 )
 from PySide6.QtWidgets import QFrame, QSizePolicy, QWidget
@@ -36,8 +37,8 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff", ".webp"}
 TOOL_NONE = "none"
 TOOL_BRUSH = "brush"
 TOOL_ERASER = "eraser"
-TOOL_RECT_BRUSH = "rect_brush"
-TOOL_RECT_ERASER = "rect_eraser"
+TOOL_LASSO_BRUSH = "lasso_brush"
+TOOL_LASSO_ERASER = "lasso_eraser"
 TOOL_MAGIC = "magic"     # 魔棒：点击选中黑色背景区域
 TOOL_BUCKET = "bucket"   # 油漆桶：填充封闭区域
 TOOL_EYEDROPPER = "eyedropper"  # 吸管：吸取背景色
@@ -409,8 +410,8 @@ class PaintableView(DropArea):
     工具：
         TOOL_BRUSH        圆形画笔（涂抹保护区）
         TOOL_ERASER       圆形橡皮（擦除保护区）
-        TOOL_RECT_BRUSH   矩形画笔（拖一个矩形 → 内部全部保护）
-        TOOL_RECT_ERASER  矩形橡皮（拖一个矩形 → 内部全部清除）
+        TOOL_LASSO_BRUSH  套索画笔（拖动绘制闭合区域 → 内部全部保护）
+        TOOL_LASSO_ERASER 套索橡皮（拖动绘制闭合区域 → 内部全部清除）
         TOOL_MAGIC        魔棒选区（点击背景，反转为前景后写入 _mask）
         TOOL_BUCKET       油漆桶填充（填充封闭区域）
         TOOL_EYEDROPPER   吸管吸取背景色
@@ -439,11 +440,9 @@ class PaintableView(DropArea):
         self._last_pt: Optional[QPoint] = None  # 图像坐标
         self._stroke_backup: Optional[np.ndarray] = None
 
-        # 矩形拖动
-        self._rect_dragging: bool = False
-        self._rect_start_widget: Optional[QPoint] = None
-        self._rect_start_image: Optional[QPoint] = None
-        self._rect_cur_widget: Optional[QPoint] = None
+        # 套索拖动
+        self._lasso_dragging: bool = False
+        self._lasso_points: list[tuple[int, int]] = []  # 图像坐标点序列
 
         # 魔棒
         self._src_rgb: Optional[np.ndarray] = None  # (H, W, 3) uint8
@@ -485,8 +484,8 @@ class PaintableView(DropArea):
         self._tool = tool
         if tool == TOOL_NONE:
             self.unsetCursor()
-        elif tool in (TOOL_RECT_BRUSH, TOOL_RECT_ERASER):
-            # 矩形工具用系统十字光标，准确好认
+        elif tool in (TOOL_LASSO_BRUSH, TOOL_LASSO_ERASER):
+            # 套索工具用系统十字光标，准确好认
             self.setCursor(QCursor(Qt.CrossCursor))
         elif tool == TOOL_MAGIC:
             # 魔棒用 PointingHand 光标更直观
@@ -747,21 +746,23 @@ class PaintableView(DropArea):
             mask_img = QImage(rgba.data, w, h, w * 4, QImage.Format_RGBA8888).copy()
             p.drawImage(target_rect, mask_img)
 
-        # 2. 矩形拖动预览（橡皮带）
-        if self._rect_dragging and self._rect_start_widget and self._rect_cur_widget:
+        # 2. 套索拖动预览
+        if self._lasso_dragging and len(self._lasso_points) > 1 and self._image_size is not None:
             color = (
                 QColor(80, 200, 255)
-                if self._tool == TOOL_RECT_ERASER
+                if self._tool == TOOL_LASSO_ERASER
                 else QColor(255, 60, 60)
             )
-            pen = QPen(color, 1.5, Qt.DashLine)
+            iw, ih = self._image_size
+            poly = QPolygon()
+            for ix, iy in self._lasso_points:
+                wx = int(target_rect.x() + ix * target_rect.width() / iw)
+                wy = int(target_rect.y() + iy * target_rect.height() / ih)
+                poly.append(QPoint(wx, wy))
+            pen = QPen(color, 1.5, Qt.SolidLine)
             p.setPen(pen)
             p.setBrush(QColor(color.red(), color.green(), color.blue(), 60))
-            r = QRect(self._rect_start_widget, self._rect_cur_widget).normalized()
-            # 与图像区域求交，避免画到图像外面
-            r = r.intersected(target_rect)
-            if not r.isEmpty():
-                p.drawRect(r)
+            p.drawPolygon(poly)
 
         # 3. 笔刷光标圆圈（仅圆形画笔/橡皮）
         if (
@@ -801,16 +802,14 @@ class PaintableView(DropArea):
                 self.update()
                 return
 
-            if self._tool in (TOOL_RECT_BRUSH, TOOL_RECT_ERASER):
+            if self._tool in (TOOL_LASSO_BRUSH, TOOL_LASSO_ERASER):
                 if self._mask is None:
                     return
                 ipt = self._widget_to_image(event.pos(), clamp=True)
                 if ipt is None:
                     return
-                self._rect_dragging = True
-                self._rect_start_widget = event.pos()
-                self._rect_cur_widget = event.pos()
-                self._rect_start_image = ipt
+                self._lasso_dragging = True
+                self._lasso_points = [(ipt.x(), ipt.y())]
                 self.update()
                 return
 
@@ -862,8 +861,13 @@ class PaintableView(DropArea):
             self.update()
             return
 
-        if self._rect_dragging and (event.buttons() & Qt.LeftButton):
-            self._rect_cur_widget = event.pos()
+        if self._lasso_dragging and (event.buttons() & Qt.LeftButton):
+            ipt = self._widget_to_image(event.pos(), clamp=True)
+            if ipt is not None:
+                last = self._lasso_points[-1]
+                # 距离过近的点跳过，减少数据量
+                if (ipt.x() - last[0]) ** 2 + (ipt.y() - last[1]) ** 2 >= 2:
+                    self._lasso_points.append((ipt.x(), ipt.y()))
             self.update()
             return
 
@@ -883,15 +887,17 @@ class PaintableView(DropArea):
                 self.mask_changed.emit()
                 return
 
-            if self._rect_dragging:
-                self._rect_dragging = False
-                end_ipt = self._widget_to_image(event.pos(), clamp=True)
-                start_ipt = self._rect_start_image
-                self._rect_start_widget = None
-                self._rect_cur_widget = None
-                self._rect_start_image = None
-                if end_ipt is not None and start_ipt is not None:
-                    self._fill_rect(start_ipt, end_ipt)
+            if self._lasso_dragging:
+                self._lasso_dragging = False
+                ipt = self._widget_to_image(event.pos(), clamp=True)
+                if ipt is not None:
+                    last = self._lasso_points[-1] if self._lasso_points else None
+                    if last is None or (ipt.x() - last[0]) ** 2 + (ipt.y() - last[1]) ** 2 >= 2:
+                        self._lasso_points.append((ipt.x(), ipt.y()))
+                if len(self._lasso_points) >= 3:
+                    value = 255 if self._tool == TOOL_LASSO_BRUSH else 0
+                    self._fill_lasso(self._lasso_points, value)
+                self._lasso_points = []
                 self.update()
                 return
         super().mouseReleaseEvent(event)
@@ -944,21 +950,41 @@ class PaintableView(DropArea):
                     sub, 0, self._mask[y_lo:y_hi, x_lo:x_hi]
                 )
 
-    def _fill_rect(self, p0: QPoint, p1: QPoint) -> None:
-        """矩形画笔/橡皮：填充矩形区域为 255 或 0，并入历史栈。"""
-        if self._mask is None:
+    def _fill_lasso(self, points: list[tuple[int, int]], value: int) -> None:
+        """套索画笔/橡皮：填充闭合多边形内部为 value，并入历史栈。"""
+        if self._mask is None or len(points) < 3:
             return
+
+        pts = np.array(points, dtype=np.int32)
+        x0, y0 = pts.min(axis=0).tolist()
+        x1, y1 = pts.max(axis=0).tolist()
         h, w = self._mask.shape
-        x0, x1 = sorted((max(0, min(w, p0.x())), max(0, min(w, p1.x()))))
-        y0, y1 = sorted((max(0, min(h, p0.y())), max(0, min(h, p1.y()))))
-        if x1 <= x0 or y1 <= y0:
+        x0, y0 = max(0, x0), max(0, y0)
+        x1, y1 = min(w - 1, x1), min(h - 1, y1)
+        if x0 >= x1 or y0 >= y1:
             return
-        before = self._mask[y0:y1, x0:x1].copy()
-        if self._tool == TOOL_RECT_BRUSH:
-            self._mask[y0:y1, x0:x1] = 255
-        else:  # TOOL_RECT_ERASER
-            self._mask[y0:y1, x0:x1] = 0
-        after = self._mask[y0:y1, x0:x1].copy()
+
+        # 构造 bbox 内的多边形掩膜
+        rel_pts = pts - np.array([x0, y0])
+        sub_h, sub_w = y1 - y0 + 1, x1 - x0 + 1
+        poly_mask = np.zeros((sub_h, sub_w), dtype=np.uint8)
+        from PIL import Image, ImageDraw
+
+        img = Image.fromarray(poly_mask)
+        draw = ImageDraw.Draw(img)
+        draw.polygon([tuple(p) for p in rel_pts], fill=255)
+        poly_mask = np.array(img)
+
+        before = self._mask[y0 : y1 + 1, x0 : x1 + 1].copy()
+        if value:
+            self._mask[y0 : y1 + 1, x0 : x1 + 1] = np.maximum(
+                self._mask[y0 : y1 + 1, x0 : x1 + 1], poly_mask
+            )
+        else:
+            self._mask[y0 : y1 + 1, x0 : x1 + 1] = np.where(
+                poly_mask, 0, self._mask[y0 : y1 + 1, x0 : x1 + 1]
+            )
+        after = self._mask[y0 : y1 + 1, x0 : x1 + 1].copy()
         if not np.array_equal(before, after):
-            self._push_history(y0, y1, x0, x1, before, after)
+            self._push_history(y0, y1 + 1, x0, x1 + 1, before, after)
             self.mask_changed.emit()
