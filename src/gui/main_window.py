@@ -13,6 +13,7 @@ from PySide6.QtGui import QAction, QColor, QIcon, QImage, QClipboard
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFormLayout,
     QGridLayout,
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QMessageBox,
+    QProgressBar,
     QProgressDialog,
     QPushButton,
     QScrollArea,
@@ -29,6 +31,7 @@ from PySide6.QtWidgets import (
     QSlider,
     QSplitter,
     QStatusBar,
+    QTextBrowser,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -51,6 +54,178 @@ from .widgets import (
 )
 
 APP_VERSION = "1.4.5"
+
+# GitHub 仓库，用于检查更新
+UPDATE_REPO = "LiKPO4/RemoveBlack"
+
+
+# ---------------------------------------------------------------------------
+# 更新检查 / 下载后台线程
+# ---------------------------------------------------------------------------
+class UpdateChecker(QThread):
+    """启动时检查 GitHub latest release 是否有更新。"""
+
+    update_available = Signal(str, str)  # version, body
+    no_update = Signal()
+    error = Signal(str)
+
+    def __init__(self, current_version: str, repo: str, parent=None) -> None:
+        super().__init__(parent)
+        self.current_version = current_version
+        self.repo = repo
+
+    @staticmethod
+    def _parse_version(v: str) -> tuple[int, ...]:
+        return tuple(int(x) for x in v.strip().lstrip("vV").split(".") if x.isdigit())
+
+    def run(self) -> None:  # noqa: D401
+        import json
+        from urllib.request import Request, urlopen
+
+        url = f"https://api.github.com/repos/{self.repo}/releases/latest"
+        req = Request(url, headers={"User-Agent": "RemoveBlack-Updater"})
+        try:
+            with urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            self.error.emit(str(e))
+            return
+
+        latest = data.get("tag_name", "").lstrip("vV")
+        body = data.get("body", "")
+        try:
+            if self._parse_version(latest) > self._parse_version(self.current_version):
+                self.update_available.emit(latest, body)
+                return
+        except Exception:
+            if latest and latest != self.current_version:
+                self.update_available.emit(latest, body)
+                return
+        self.no_update.emit()
+
+
+class UpdateDownloader(QThread):
+    """下载最新版 exe 到当前程序同目录。"""
+
+    progress = Signal(int)       # 0~100
+    finished = Signal(bool, str)  # success, message
+
+    def __init__(self, url: str, dst: Path, parent=None) -> None:
+        super().__init__(parent)
+        self.url = url
+        self.dst = dst
+
+    def run(self) -> None:  # noqa: D401
+        from urllib.request import Request, urlopen
+
+        req = Request(self.url, headers={"User-Agent": "RemoveBlack-Updater"})
+        try:
+            with urlopen(req, timeout=120) as resp:
+                total = int(resp.headers.get("Content-Length", 0))
+                downloaded = 0
+                chunk_size = 8192
+                self.dst.parent.mkdir(parents=True, exist_ok=True)
+                with open(self.dst, "wb") as f:
+                    while True:
+                        chunk = resp.read(chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total:
+                            self.progress.emit(min(100, downloaded * 100 // total))
+            self.finished.emit(True, f"已下载到：{self.dst}")
+        except Exception as e:
+            self.finished.emit(False, f"下载失败：{e}")
+
+
+class UpdateDialog(QDialog):
+    """发现新版本后弹出的更新摘要 / 下载对话框。"""
+
+    def __init__(self, version: str, body: str, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("发现新版本")
+        self.setMinimumSize(520, 420)
+        self._version = version
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        info = QLabel(
+            f"<p>当前版本：<b>v{APP_VERSION}</b></p>"
+            f"<p>最新版本：<b style='color:#2e7d32;'>v{version}</b></p>"
+        )
+        info.setTextFormat(Qt.RichText)
+        layout.addWidget(info)
+
+        layout.addWidget(QLabel("更新摘要："))
+        self._body_browser = QTextBrowser()
+        self._body_browser.setPlainText(body)
+        layout.addWidget(self._body_browser)
+
+        self._progress = QProgressBar()
+        self._progress.setRange(0, 100)
+        self._progress.setValue(0)
+        self._progress.setVisible(False)
+        layout.addWidget(self._progress)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch(1)
+        self._btn_download = QPushButton("下载新版")
+        self._btn_download.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #81c784;"
+            "  color: #1b5e20;"
+            "  border: 1px solid #66bb6a;"
+            "  border-radius: 4px;"
+            "  padding: 5px 16px;"
+            "}"
+            "QPushButton:hover { background-color: #66bb6a; }"
+            "QPushButton:pressed { background-color: #4caf50; }"
+        )
+        self._btn_close = QPushButton("稍后再说")
+        self._btn_close.setDefault(True)
+        btn_layout.addWidget(self._btn_close)
+        btn_layout.addWidget(self._btn_download)
+        layout.addLayout(btn_layout)
+
+        self._btn_download.clicked.connect(self._start_download)
+        self._btn_close.clicked.connect(self.reject)
+
+    def _start_download(self) -> None:
+        import sys
+
+        # 下载目录：打包后取 exe 所在目录，源码运行取项目根目录
+        if getattr(sys, "frozen", False):
+            dst_dir = Path(sys.executable).resolve().parent
+        else:
+            dst_dir = Path(__file__).resolve().parent.parent.parent
+        dst = dst_dir / f"RemoveBlack-v{self._version}.exe"
+
+        url = (
+            f"https://github.com/{UPDATE_REPO}/releases/download/"
+            f"v{self._version}/RemoveBlack.exe"
+        )
+
+        self._btn_download.setEnabled(False)
+        self._btn_download.setText("下载中…")
+        self._progress.setVisible(True)
+
+        self._downloader = UpdateDownloader(url, dst, self)
+        self._downloader.progress.connect(self._progress.setValue)
+        self._downloader.finished.connect(self._on_download_finished)
+        self._downloader.start()
+
+    def _on_download_finished(self, success: bool, message: str) -> None:
+        self._progress.setVisible(False)
+        self._btn_download.setEnabled(True)
+        self._btn_download.setText("下载新版")
+        if success:
+            QMessageBox.information(self, "下载完成", message)
+            self.accept()
+        else:
+            QMessageBox.critical(self, "下载失败", message)
+
 
 # 底色预览预设（10 个常见颜色 + 棋盘）
 BG_PRESETS: list[tuple[str, Optional[tuple[int, int, int]]]] = [
@@ -194,9 +369,17 @@ class MainWindow(QMainWindow):
         self._preview_timer.timeout.connect(self._refresh_preview)
         self._preview_delay_ms = 80
 
+        # 更新检查状态
+        self._update_action: Optional[QAction] = None
+        self._latest_version: Optional[str] = None
+        self._latest_body: Optional[str] = None
+
         self._build_ui()
         self._build_menu()
         self.statusBar().showMessage("拖入一张图片或一个文件夹开始")
+
+        # 启动后后台检查更新
+        self._check_for_update()
         # 状态栏：左侧消息，中间缩放，右侧署名
         self._zoom_label = QLabel("缩放：100%")
         self._zoom_label.setStyleSheet("color:#666;padding:0 12px;")
@@ -718,9 +901,46 @@ class MainWindow(QMainWindow):
         m_view.addAction(a_zout)
 
         m_help = self.menuBar().addMenu("帮助(&H)")
+
+        self._update_action = QAction("🔔 有新版本", self)
+        self._update_action.setVisible(False)
+        self._update_action.triggered.connect(self._on_update_action)
+        m_help.addAction(self._update_action)
+
+        m_help.addSeparator()
         a_about = QAction("关于…", self)
         a_about.triggered.connect(self._show_about)
         m_help.addAction(a_about)
+
+    # ------------------------------------------------------------------
+    # 更新检查
+    # ------------------------------------------------------------------
+    def _check_for_update(self) -> None:
+        checker = UpdateChecker(APP_VERSION, UPDATE_REPO, self)
+        checker.update_available.connect(self._on_update_available)
+        checker.no_update.connect(lambda: None)
+        checker.error.connect(lambda e: print(f"[更新检查失败] {e}"))
+        checker.start()
+
+    def _on_update_available(self, version: str, body: str) -> None:
+        self._latest_version = version
+        self._latest_body = body
+        if self._update_action is not None:
+            self._update_action.setVisible(True)
+            self._update_action.setText(f"🔔 有新版本 v{version}")
+        self.statusBar().showMessage(f"发现新版本 v{version}，请在「帮助」菜单中查看", 5000)
+        QMessageBox.information(
+            self,
+            "发现新版本",
+            f"RemoveBlack v{version} 已发布。\n\n"
+            f"请点击顶部菜单「帮助」→「有新版本」查看更新摘要并下载。",
+        )
+
+    def _on_update_action(self) -> None:
+        if not self._latest_version:
+            return
+        dialog = UpdateDialog(self._latest_version, self._latest_body, self)
+        dialog.exec()
 
     # ------------------------------------------------------------------
     # 算法面板动态构建
