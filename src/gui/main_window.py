@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 from PIL import Image
 from PySide6.QtCore import QSettings, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QAction, QColor, QIcon, QImage, QClipboard
+from PySide6.QtGui import QAction, QColor, QIcon, QImage, QPainter, QPixmap, QClipboard
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -373,6 +373,8 @@ class MainWindow(QMainWindow):
         self._update_action: Optional[QAction] = None
         self._latest_version: Optional[str] = None
         self._latest_body: Optional[str] = None
+        self._update_check_done: bool = False
+        self._update_check_in_progress: bool = False
 
         self._build_ui()
         self._build_menu()
@@ -902,8 +904,7 @@ class MainWindow(QMainWindow):
 
         m_help = self.menuBar().addMenu("帮助(&H)")
 
-        self._update_action = QAction("🔔 有新版本", self)
-        self._update_action.setVisible(False)
+        self._update_action = QAction("检查更新", self)
         self._update_action.triggered.connect(self._on_update_action)
         m_help.addAction(self._update_action)
 
@@ -915,19 +916,38 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # 更新检查
     # ------------------------------------------------------------------
-    def _check_for_update(self) -> None:
+    @staticmethod
+    def _red_dot_icon(size: int = 10) -> QIcon:
+        """生成红点提示图标。"""
+        pm = QPixmap(size, size)
+        pm.fill(Qt.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setBrush(QColor(231, 76, 60))
+        p.setPen(Qt.NoPen)
+        p.drawEllipse(0, 0, size, size)
+        p.end()
+        return QIcon(pm)
+
+    def _check_for_update(self, silent: bool = True) -> None:
+        if self._update_check_in_progress:
+            return
+        self._update_check_in_progress = True
+        self._update_check_done = False
         checker = UpdateChecker(APP_VERSION, UPDATE_REPO, self)
         checker.update_available.connect(self._on_update_available)
-        checker.no_update.connect(lambda: None)
-        checker.error.connect(lambda e: print(f"[更新检查失败] {e}"))
+        checker.no_update.connect(lambda: self._on_no_update(silent))
+        checker.error.connect(lambda e: self._on_update_error(e, silent))
         checker.start()
 
     def _on_update_available(self, version: str, body: str) -> None:
         self._latest_version = version
         self._latest_body = body
+        self._update_check_done = True
+        self._update_check_in_progress = False
         if self._update_action is not None:
-            self._update_action.setVisible(True)
-            self._update_action.setText(f"🔔 有新版本 v{version}")
+            self._update_action.setText(f"有新版本 v{version}")
+            self._update_action.setIcon(self._red_dot_icon())
         self.statusBar().showMessage(f"发现新版本 v{version}，请在「帮助」菜单中查看", 5000)
         QMessageBox.information(
             self,
@@ -936,11 +956,46 @@ class MainWindow(QMainWindow):
             f"请点击顶部菜单「帮助」→「有新版本」查看更新摘要并下载。",
         )
 
+    def _on_no_update(self, silent: bool) -> None:
+        self._update_check_done = True
+        self._update_check_in_progress = False
+        if self._update_action is not None:
+            self._update_action.setText("检查更新")
+            self._update_action.setIcon(QIcon())
+        if not silent:
+            QMessageBox.information(
+                self,
+                "检查更新",
+                f"当前已是最新版本 RemoveBlack v{APP_VERSION}。",
+            )
+
+    def _on_update_error(self, error: str, silent: bool) -> None:
+        self._update_check_done = True
+        self._update_check_in_progress = False
+        print(f"[更新检查失败] {error}")
+        if not silent:
+            QMessageBox.warning(
+                self,
+                "检查更新失败",
+                f"无法获取最新版本信息：\n{error}",
+            )
+
     def _on_update_action(self) -> None:
-        if not self._latest_version:
+        if self._latest_version:
+            dialog = UpdateDialog(self._latest_version, self._latest_body, self)
+            dialog.exec()
             return
-        dialog = UpdateDialog(self._latest_version, self._latest_body, self)
-        dialog.exec()
+
+        if self._update_check_in_progress:
+            QMessageBox.information(
+                self,
+                "检查更新",
+                "正在检查更新，请稍后再试。",
+            )
+            return
+
+        # 无结果或已确认无更新：重新检查一次并给用户反馈
+        self._check_for_update(silent=False)
 
     # ------------------------------------------------------------------
     # 算法面板动态构建
