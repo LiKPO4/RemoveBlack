@@ -55,7 +55,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.5.4"
+APP_VERSION = "1.5.5"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -233,7 +233,7 @@ class UpdateDialog(QDialog):
             QMessageBox.critical(self, "下载失败", message)
 
 
-# 底色预览预设（10 个常见颜色 + 棋盘）
+# 底色预览预设（19 个常见颜色 + 棋盘，分两行展示）
 BG_PRESETS: list[tuple[str, Optional[tuple[int, int, int]]]] = [
     ("棋盘", None),
     ("纯黑", (0, 0, 0)),
@@ -244,9 +244,16 @@ BG_PRESETS: list[tuple[str, Optional[tuple[int, int, int]]]] = [
     ("纯红", (255, 0, 0)),
     ("纯黄", (255, 255, 0)),
     ("品红", (255, 0, 255)),
+    ("青色", (0, 255, 255)),
     ("纯绿", (0, 200, 0)),
+    ("橄榄", (128, 128, 0)),
     ("天蓝", (90, 170, 230)),
+    ("海军蓝", (0, 0, 128)),
     ("橙色", (255, 140, 30)),
+    ("珊瑚", (255, 127, 80)),
+    ("粉色", (255, 192, 203)),
+    ("棕色", (139, 69, 19)),
+    ("金色", (255, 215, 0)),
     ("紫色", (130, 60, 200)),
 ]
 
@@ -625,8 +632,10 @@ class MainWindow(QMainWindow):
         tb.addLayout(row_props)
 
         # 与右侧顶部区域保持相同固定高度，确保左右图片区域等高
+        # 上下加 stretch，让两行内容在区域内垂直居中，视觉上更平衡
         tb.addStretch(1)
-        tool_bar.setFixedHeight(72)
+        tb.insertStretch(0, 1)
+        tool_bar.setFixedHeight(90)
         return tool_bar
 
     def _build_ui(self) -> None:
@@ -667,22 +676,17 @@ class MainWindow(QMainWindow):
         rl = QVBoxLayout(right)
         rl.setContentsMargins(4, 4, 4, 4)
 
-        # 右侧顶部：底色预设条（两行布局，与左侧工具栏自然等高）
+        # 右侧顶部：底色预设条（标题 + 两行颜色，与左侧工具栏自然等高）
         right_top = QWidget()
         rt_vl = QVBoxLayout(right_top)
-        rt_vl.setContentsMargins(0, 0, 0, 0)
+        rt_vl.setContentsMargins(4, 2, 4, 2)
         rt_vl.setSpacing(4)
 
-        row_label = QHBoxLayout()
-        row_label.addWidget(QLabel("去黑底预览"))
-        row_label.addStretch(1)
-        rt_vl.addLayout(row_label)
+        header = QLabel("去黑底预览")
+        header.setStyleSheet("font-weight: bold; color: #333;")
+        rt_vl.addWidget(header)
 
-        bg_bar = QWidget()
-        bg_hl = QHBoxLayout(bg_bar)
-        bg_hl.setContentsMargins(0, 0, 0, 0)
-        bg_hl.setSpacing(3)
-        bg_hl.addWidget(QLabel("底色："))
+        # 颜色按钮分两行，第二行与第一行按钮左对齐
         self._bg_buttons: list[QPushButton] = []
         for name, rgb in BG_PRESETS:
             btn = QPushButton()
@@ -709,13 +713,41 @@ class MainWindow(QMainWindow):
                 lambda _=False, c=rgb: self._on_bg_color_chosen(c)
             )
             self._bg_buttons.append(btn)
-            bg_hl.addWidget(btn)
         # 默认棋盘
         self._bg_buttons[0].setChecked(True)
-        bg_hl.addStretch(1)
-        rt_vl.addWidget(_wrap_in_hscroll(bg_bar))
+
+        mid = (len(self._bg_buttons) + 1) // 2
+        row1_btns = self._bg_buttons[:mid]
+        row2_btns = self._bg_buttons[mid:]
+
+        grid_widget = QWidget()
+        grid = QGridLayout(grid_widget)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(4)
+
+        grid.addWidget(QLabel("底色："), 0, 0, alignment=Qt.AlignVCenter)
+        row1 = QWidget()
+        hl1 = QHBoxLayout(row1)
+        hl1.setContentsMargins(0, 0, 0, 0)
+        hl1.setSpacing(3)
+        for b in row1_btns:
+            hl1.addWidget(b)
+        hl1.addStretch(1)
+        grid.addWidget(row1, 0, 1)
+
+        row2 = QWidget()
+        hl2 = QHBoxLayout(row2)
+        hl2.setContentsMargins(0, 0, 0, 0)
+        hl2.setSpacing(3)
+        for b in row2_btns:
+            hl2.addWidget(b)
+        hl2.addStretch(1)
+        grid.addWidget(row2, 1, 1)
+
+        rt_vl.addWidget(grid_widget)
         rt_vl.addStretch(1)
-        right_top.setFixedHeight(72)
+        right_top.setFixedHeight(90)
         rl.addWidget(right_top)
 
         rl.addWidget(self.dst_view, 1)
