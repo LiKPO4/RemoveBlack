@@ -53,7 +53,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.4.5"
+APP_VERSION = "1.4.6"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -1458,6 +1458,8 @@ class MainWindow(QMainWindow):
             "<p>核心算法 <b>UnMult</b>：A = max(R,G,B); RGB ÷= A，"
             "合成回黑底视觉零损失。</p>"
             "<p>另含阈值法、颜色键、HSV 去色背景、背景色键控等备选算法。</p>"
+            "<p><b>v1.4.6</b>：新增自动更新检查：启动时检测 GitHub 最新 release，"
+            "发现新版本时在帮助菜单显示入口，点击可查看摘要并下载新版 exe。</p>"
             "<p><b>v1.4.5</b>：导出按钮颜色调整为更淡雅的绿色，三个操作按钮尺寸统一。</p>"
             "<p><b>v1.4.4</b>：导出 PNG 按钮改为淡绿色，突出主要操作。</p>"
             "<p><b>v1.4.3</b>：拖动参数滑条时采用防抖刷新，解决大图预览卡顿问题。</p>"
