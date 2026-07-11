@@ -20,11 +20,13 @@ SUPPORTED_INPUT_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff"
 
 
 def _load_image(path: str | os.PathLike) -> np.ndarray:
-    """读图为 RGBA uint8。"""
-    img = Image.open(path)
-    if img.mode not in ("RGB", "RGBA", "L"):
-        img = img.convert("RGBA")
-    return np.array(img)
+    """读图为 RGB/RGBA uint8（灰度自动转 RGB）。"""
+    with Image.open(path) as img:
+        if img.mode == "L":
+            img = img.convert("RGB")
+        elif img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGBA")
+        return np.array(img)
 
 
 def _save_png(arr: np.ndarray, path: str | os.PathLike) -> None:
@@ -130,6 +132,45 @@ def process_folder(
             )
             written.append(out)
         except Exception as e:  # 单图失败不影响整批
+            print(f"[WARN] failed to process {src}: {e}")
+        finally:
+            if progress is not None:
+                progress(i, total, src)
+
+    return written
+
+
+def process_files(
+    files: Iterable[str | os.PathLike],
+    dst_dir: Optional[str | os.PathLike] = None,
+    algorithm: str = "unmult",
+    suffix: str = "_nobg",
+    progress: Optional[Callable[[int, int, Path], None]] = None,
+    alpha_floor: int = 0,
+    **params,
+) -> list[Path]:
+    """
+    批量处理指定文件列表。
+
+    dst_dir 为 None 时输出到源文件同目录（带后缀）；
+    否则输出到目标目录，保持原相对目录结构（此处统一放平到 dst_dir）。
+    """
+    files = [Path(p) for p in files]
+    total = len(files)
+    written: list[Path] = []
+    dst_root = Path(dst_dir) if dst_dir else None
+
+    for i, src in enumerate(files, 1):
+        if dst_root is None:
+            dst = src.with_name(f"{src.stem}{suffix}.png")
+        else:
+            dst = dst_root / f"{src.stem}{suffix}.png"
+        try:
+            out = process_file(
+                src, dst, algorithm=algorithm, alpha_floor=alpha_floor, **params
+            )
+            written.append(out)
+        except Exception as e:
             print(f"[WARN] failed to process {src}: {e}")
         finally:
             if progress is not None:

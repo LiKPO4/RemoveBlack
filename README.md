@@ -18,7 +18,7 @@ RGB = RGB / A
 
 - 拖拽图片 / 文件夹到窗口即可处理
 - 支持 **Ctrl+V 粘贴图片**（截图、剪贴板图片）
-- **五种算法**可切换：
+- **六种算法**可切换：
   - **UnMult（黑底）**（推荐，对应原文方案）
   - **UnMult（吸管背景色）**：用吸管吸取绿幕/蓝幕等任意纯色背景
   - **背景色键控（保色）**：按与背景色的距离直接映射 alpha，保留原 RGB，适合对色彩准确度要求高的场景
@@ -28,7 +28,6 @@ RGB = RGB / A
 - 棋盘格透明背景预览，参数滑块实时调整
 - 保护画笔 / 魔棒 / 吸管等编辑工具
 - 批量处理整个文件夹，带进度条 / 可取消
-- 同时打包 GUI（`RemoveBlack.exe`）和 CLI（`RemoveBlack-cli.exe`）
 - 把图片或文件夹直接拖到 `.exe` 图标上也能用
 
 ---
@@ -68,8 +67,8 @@ build.bat
 输出：
 
 ```
-dist\RemoveBlack.exe         GUI 单文件，约 35 MB，免安装
-dist\RemoveBlack-cli.exe     CLI 单文件
+dist\RemoveBlack.exe         GUI 单文件，免安装
+dist\RemoveBlack-vX.X.X.exe  带版本号副本
 ```
 
 ---

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -12,6 +13,7 @@ from PySide6.QtCore import QSettings, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QColor, QIcon, QImage, QPainter, QPixmap, QClipboard
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -21,6 +23,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QProgressBar,
@@ -38,7 +41,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..core import ALGORITHMS, apply_protection, process_folder
-from ..core.processor import _save_png  # 复用保存逻辑
+from ..core.processor import _save_png, process_files  # 复用保存逻辑
 from .widgets import (
     IMAGE_EXTS,
     TOOL_BRUSH,
@@ -52,7 +55,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.4.9"
+APP_VERSION = "1.5.0"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -104,7 +107,7 @@ class UpdateChecker(QThread):
 
 
 class UpdateDownloader(QThread):
-    """下载最新版 exe 到当前程序同目录。"""
+    """下载最新版 exe 到当前程序同目录（先写临时文件，再重命名）。"""
 
     progress = Signal(int)       # 0~100
     finished = Signal(bool, str)  # success, message
@@ -118,13 +121,14 @@ class UpdateDownloader(QThread):
         from urllib.request import Request, urlopen
 
         req = Request(self.url, headers={"User-Agent": "RemoveBlack-Updater"})
+        tmp = self.dst.with_suffix(self.dst.suffix + ".tmp")
         try:
+            self.dst.parent.mkdir(parents=True, exist_ok=True)
             with urlopen(req, timeout=120) as resp:
                 total = int(resp.headers.get("Content-Length", 0))
                 downloaded = 0
                 chunk_size = 8192
-                self.dst.parent.mkdir(parents=True, exist_ok=True)
-                with open(self.dst, "wb") as f:
+                with open(tmp, "wb") as f:
                     while True:
                         chunk = resp.read(chunk_size)
                         if not chunk:
@@ -133,8 +137,11 @@ class UpdateDownloader(QThread):
                         downloaded += len(chunk)
                         if total:
                             self.progress.emit(min(100, downloaded * 100 // total))
+            tmp.replace(self.dst)
             self.finished.emit(True, f"已下载到：{self.dst}")
         except Exception as e:
+            if tmp.exists():
+                tmp.unlink(missing_ok=True)
             self.finished.emit(False, f"下载失败：{e}")
 
 
@@ -298,18 +305,20 @@ class BatchWorker(QThread):
 
     def __init__(
         self,
-        src_dir: Path,
-        dst_dir: Optional[Path],
-        algorithm: str,
-        params: dict,
-        recursive: bool,
+        src_dir: Optional[Path] = None,
+        files: Optional[list[Path]] = None,
+        dst_dir: Optional[Path] = None,
+        algorithm: str = "unmult",
+        params: Optional[dict] = None,
+        recursive: bool = False,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self.src_dir = src_dir
+        self.files = files
         self.dst_dir = dst_dir
         self.algorithm = algorithm
-        self.params = params
+        self.params = params or {}
         self.recursive = recursive
         self._cancel = False
 
@@ -319,22 +328,84 @@ class BatchWorker(QThread):
     def run(self) -> None:  # noqa: D401
         def cb(done, total, cur):
             if self._cancel:
-                # 抛异常中断 process_folder
+                # 抛异常中断 process_folder / process_files
                 raise InterruptedError()
             self.progress.emit(done, total, str(cur))
 
         try:
-            written = process_folder(
-                self.src_dir,
-                self.dst_dir,
-                algorithm=self.algorithm,
-                recursive=self.recursive,
-                progress=cb,
-                **self.params,
-            )
+            if self.files is not None:
+                written = process_files(
+                    self.files,
+                    dst_dir=self.dst_dir,
+                    algorithm=self.algorithm,
+                    progress=cb,
+                    **self.params,
+                )
+            else:
+                written = process_folder(
+                    self.src_dir,
+                    self.dst_dir,
+                    algorithm=self.algorithm,
+                    recursive=self.recursive,
+                    progress=cb,
+                    **self.params,
+                )
             self.finished_ok.emit(len(written))
         except InterruptedError:
             self.finished_ok.emit(-1)
+
+
+class BatchDialog(QDialog):
+    """批量处理选项对话框：选择输出目录与是否递归。"""
+
+    def __init__(self, src_dir: Path, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("批量处理选项")
+        self.src_dir = src_dir
+        self.dst_dir: Optional[Path] = None
+        self.recursive = False
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(f"源文件夹：\n{src_dir}"))
+
+        form = QFormLayout()
+        self.dst_edit = QLineEdit()
+        self.dst_edit.setPlaceholderText("留空则输出到源文件夹（文件名加 _nobg 后缀）")
+        btn_browse = QPushButton("浏览…")
+        btn_browse.clicked.connect(self._browse_dst)
+        dst_row = QHBoxLayout()
+        dst_row.addWidget(self.dst_edit)
+        dst_row.addWidget(btn_browse)
+        form.addRow("输出目录：", dst_row)
+
+        self.recursive_cb = QCheckBox("递归处理子文件夹")
+        form.addRow(self.recursive_cb)
+        layout.addLayout(form)
+
+        btn_box = QHBoxLayout()
+        btn_ok = QPushButton("开始")
+        btn_ok.setDefault(True)
+        btn_ok.clicked.connect(self.accept)
+        btn_cancel = QPushButton("取消")
+        btn_cancel.clicked.connect(self.reject)
+        btn_box.addStretch(1)
+        btn_box.addWidget(btn_ok)
+        btn_box.addWidget(btn_cancel)
+        layout.addLayout(btn_box)
+
+        self.setLayout(layout)
+        self.resize(480, 160)
+
+    def _browse_dst(self) -> None:
+        d = QFileDialog.getExistingDirectory(self, "选择输出目录")
+        if d:
+            self.dst_edit.setText(d)
+
+    def accept(self) -> None:
+        text = self.dst_edit.text().strip()
+        self.dst_dir = Path(text) if text else None
+        self.recursive = self.recursive_cb.isChecked()
+        super().accept()
 
 
 # ---------------------------------------------------------------------------
@@ -374,13 +445,25 @@ class MainWindow(QMainWindow):
         self._latest_body: Optional[str] = None
         self._update_check_done: bool = False
         self._update_check_in_progress: bool = False
+        self._update_checker: Optional[UpdateChecker] = None
+        self._batch_worker: Optional[BatchWorker] = None
 
         self._build_ui()
         self._build_menu()
-        self.statusBar().showMessage("拖入一张图片或一个文件夹开始")
 
         # 启动后后台检查更新
         self._check_for_update()
+
+    def _last_dir(self, key: str) -> str:
+        return self._settings.value(key, "", type=str)
+
+    def _set_last_dir(self, key: str, path: str | os.PathLike) -> None:
+        p = Path(path)
+        if p.is_file():
+            p = p.parent
+        if p.is_dir():
+            self._settings.setValue(key, str(p))
+
         # 状态栏：左侧消息，中间缩放，右侧署名
         self._zoom_label = QLabel("缩放：100%")
         self._zoom_label.setStyleSheet("color:#666;padding:0 12px;")
@@ -402,107 +485,83 @@ class MainWindow(QMainWindow):
             left_w = max(660, w // 2)
             self._splitter.setSizes([left_w, w - left_w])
 
+    def closeEvent(self, event) -> None:  # noqa: N802, ANN001
+        # 等待后台线程安全结束，避免对象销毁后访问
+        if self._batch_worker is not None and self._batch_worker.isRunning():
+            self._batch_worker.cancel()
+            self._batch_worker.wait(2000)
+        if self._update_checker is not None and self._update_checker.isRunning():
+            self._update_checker.wait(1000)
+        super().closeEvent(event)
+
     # ------------------------------------------------------------------
     # UI 构建
     # ------------------------------------------------------------------
-    def _build_ui(self) -> None:
-        # 左：原图（可绘制蒙版）  |  右：处理结果
-        self.src_view = PaintableView()
-        self.dst_view = DropArea()
-        self.src_view.files_dropped.connect(self._on_files_dropped)
-        self.dst_view.files_dropped.connect(self._on_files_dropped)
-        self.src_view.mask_changed.connect(self._on_mask_changed)
-        self.src_view.selection_changed.connect(self._on_selection_changed)
-        self.src_view.history_changed.connect(self._on_history_changed)
-        self.src_view.zoom_changed.connect(self._on_zoom_changed)
-        self.src_view.color_picked.connect(self._on_color_picked)
-
-        # 双向视图同步：左右始终保持同样的 zoom + pan
-        self._sync_lock = False
-        self.src_view.view_changed.connect(
-            lambda: self._sync_views(src=self.src_view, dst=self.dst_view)
-        )
-        self.dst_view.view_changed.connect(
-            lambda: self._sync_views(src=self.dst_view, dst=self.src_view)
-        )
-
-        split = QSplitter(Qt.Horizontal)
-
-        # ---- 左侧：标题 + 工具栏 + 视图 ----
-        left = QWidget()
-        ll = QVBoxLayout(left)
-        ll.setContentsMargins(4, 4, 4, 4)
-        ll.addWidget(QLabel("原图（可在此处涂抹保护区域）"))
-
-        # 工具栏（两行：第一行工具按钮，第二行属性与操作）
+    def _build_toolbar(self) -> QWidget:
+        """构建左侧工具栏（工具按钮 + 属性/操作按钮）。"""
         tool_bar = QWidget()
         tb = QVBoxLayout(tool_bar)
         tb.setContentsMargins(6, 4, 6, 4)
         tb.setSpacing(4)
 
-        self.btn_tool_brush = QToolButton()
-        self.btn_tool_brush.setText("🖌 画笔")
-        self.btn_tool_eraser = QToolButton()
-        self.btn_tool_eraser.setText("🧽 橡皮")
-        self.btn_tool_lasso_brush = QToolButton()
-        self.btn_tool_lasso_brush.setText("⛓ 套索画笔")
-        self.btn_tool_lasso_eraser = QToolButton()
-        self.btn_tool_lasso_eraser.setText("⛓ 套索橡皮")
-        self.btn_tool_magic = QToolButton()
-        self.btn_tool_magic.setText("🪄 魔棒")
-        self.btn_tool_magic.setToolTip(
-            "魔棒：点击图中黑色背景区域\n"
-            "自动反转为前景并写入保护蒙版\n"
-            "Shift+点击 加选 / Alt+点击 减选"
-        )
-        self.btn_tool_bucket = QToolButton()
-        self.btn_tool_bucket.setText("🪣 油漆桶")
-        self.btn_tool_bucket.setToolTip(
-            "油漆桶：点击封闭区域内部，一键填充保护蒙版\n"
-            "适合配合画笔围出区域后快速填满"
-        )
-        self.btn_tool_eyedropper = QToolButton()
-        self.btn_tool_eyedropper.setText("🧪 吸管")
-        self.btn_tool_eyedropper.setToolTip(
-            "吸管：在原图上点击吸取背景色\n"
-            "对「UnMult（吸管背景色）」和「背景色键控」算法生效"
-        )
-        for b in (
-            self.btn_tool_brush,
-            self.btn_tool_eraser,
-            self.btn_tool_lasso_brush,
-            self.btn_tool_lasso_eraser,
-            self.btn_tool_magic,
-            self.btn_tool_bucket,
-            self.btn_tool_eyedropper,
-        ):
-            b.setCheckable(True)
-            b.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-            b.setStyleSheet("QToolButton{padding: 3px 6px; margin: 0px;}")
-            b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        # 工具按钮：统一创建
+        tool_defs = [
+            ("brush", "🖌 画笔", ""),
+            ("eraser", "🧽 橡皮", ""),
+            ("lasso_brush", "⛓ 套索画笔", ""),
+            ("lasso_eraser", "⛓ 套索橡皮", ""),
+            (
+                "magic",
+                "🪄 魔棒",
+                "魔棒：点击图中黑色背景区域\n"
+                "自动反转为前景并写入保护蒙版\n"
+                "Shift+点击 加选 / Alt+点击 减选",
+            ),
+            (
+                "bucket",
+                "🪣 油漆桶",
+                "油漆桶：点击封闭区域内部，一键填充保护蒙版\n"
+                "适合配合画笔围出区域后快速填满",
+            ),
+            (
+                "eyedropper",
+                "🧪 吸管",
+                "吸管：在原图上点击吸取背景色\n"
+                "对「UnMult（吸管背景色）」和「背景色键控」算法生效",
+            ),
+        ]
+        tool_const_map = {
+            "brush": TOOL_BRUSH,
+            "eraser": TOOL_ERASER,
+            "lasso_brush": TOOL_LASSO_BRUSH,
+            "lasso_eraser": TOOL_LASSO_ERASER,
+            "magic": TOOL_MAGIC,
+            "bucket": TOOL_BUCKET,
+            "eyedropper": TOOL_EYEDROPPER,
+        }
+        self._tool_buttons: dict[str, QToolButton] = {}
+        for key, text, tip in tool_defs:
+            btn = QToolButton()
+            btn.setText(text)
+            if tip:
+                btn.setToolTip(tip)
+            btn.setCheckable(True)
+            btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            btn.setStyleSheet("QToolButton{padding: 3px 6px; margin: 0px;}")
+            btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            const = tool_const_map[key]
+            btn.clicked.connect(lambda _checked, c=const: self._set_tool(c))
+            self._tool_buttons[key] = btn
+            setattr(self, f"btn_tool_{key}", btn)
         self.btn_tool_brush.setChecked(True)
-        self.btn_tool_brush.clicked.connect(lambda: self._set_tool(TOOL_BRUSH))
-        self.btn_tool_eraser.clicked.connect(lambda: self._set_tool(TOOL_ERASER))
-        self.btn_tool_lasso_brush.clicked.connect(lambda: self._set_tool(TOOL_LASSO_BRUSH))
-        self.btn_tool_lasso_eraser.clicked.connect(lambda: self._set_tool(TOOL_LASSO_ERASER))
-        self.btn_tool_magic.clicked.connect(lambda: self._set_tool(TOOL_MAGIC))
-        self.btn_tool_bucket.clicked.connect(lambda: self._set_tool(TOOL_BUCKET))
-        self.btn_tool_eyedropper.clicked.connect(
-            lambda: self._set_tool(TOOL_EYEDROPPER)
-        )
         self._set_tool(TOOL_BRUSH)
 
         # 第一行：工具
         row_tools = QHBoxLayout()
         row_tools.setSpacing(4)
         row_tools.addWidget(QLabel("工具："))
-        row_tools.addWidget(self.btn_tool_brush)
-        row_tools.addWidget(self.btn_tool_eraser)
-        row_tools.addWidget(self.btn_tool_lasso_brush)
-        row_tools.addWidget(self.btn_tool_lasso_eraser)
-        row_tools.addWidget(self.btn_tool_magic)
-        row_tools.addWidget(self.btn_tool_bucket)
-        row_tools.addWidget(self.btn_tool_eyedropper)
+        for key, _, _ in tool_defs:
+            row_tools.addWidget(self._tool_buttons[key])
         row_tools.addStretch(1)
         tb.addLayout(row_tools)
 
@@ -565,6 +624,39 @@ class MainWindow(QMainWindow):
         row_props.addStretch(1)
         tb.addLayout(row_props)
 
+        return tool_bar
+
+    def _build_ui(self) -> None:
+        # 左：原图（可绘制蒙版）  |  右：处理结果
+        self.src_view = PaintableView()
+        self.dst_view = DropArea()
+        self.src_view.files_dropped.connect(self._on_files_dropped)
+        self.dst_view.files_dropped.connect(self._on_files_dropped)
+        self.src_view.mask_changed.connect(self._on_mask_changed)
+        self.src_view.selection_changed.connect(self._on_selection_changed)
+        self.src_view.history_changed.connect(self._on_history_changed)
+        self.src_view.zoom_changed.connect(self._on_zoom_changed)
+        self.src_view.color_picked.connect(self._on_color_picked)
+
+        # 双向视图同步：左右始终保持同样的 zoom + pan
+        self._sync_lock = False
+        self.src_view.view_changed.connect(
+            lambda: self._sync_views(src=self.src_view, dst=self.dst_view)
+        )
+        self.dst_view.view_changed.connect(
+            lambda: self._sync_views(src=self.dst_view, dst=self.src_view)
+        )
+
+        split = QSplitter(Qt.Horizontal)
+
+        # ---- 左侧：标题 + 工具栏 + 视图 ----
+        left = QWidget()
+        ll = QVBoxLayout(left)
+        ll.setContentsMargins(4, 4, 4, 4)
+        ll.addWidget(QLabel("原图（可在此处涂抹保护区域）"))
+
+        # 工具栏（两行：第一行工具按钮，第二行属性与操作）
+        tool_bar = self._build_toolbar()
         ll.addWidget(tool_bar)
         ll.addWidget(self.src_view, 1)
         split.addWidget(left)
@@ -836,6 +928,7 @@ class MainWindow(QMainWindow):
         v.addWidget(ctrl)
         self.setCentralWidget(central)
         self.setStatusBar(QStatusBar())
+        self.statusBar().showMessage("拖入一张图片或一个文件夹开始")
 
         # 初始化算法面板（默认选第一项）
         self._on_algo_changed(0)
@@ -952,11 +1045,15 @@ class MainWindow(QMainWindow):
             return
         self._update_check_in_progress = True
         self._update_check_done = False
-        checker = UpdateChecker(APP_VERSION, UPDATE_REPO, self)
-        checker.update_available.connect(self._on_update_available)
-        checker.no_update.connect(lambda: self._on_no_update(silent))
-        checker.error.connect(lambda e: self._on_update_error(e, silent))
-        checker.start()
+        self._update_checker = UpdateChecker(APP_VERSION, UPDATE_REPO, self)
+        self._update_checker.update_available.connect(self._on_update_available)
+        self._update_checker.no_update.connect(lambda: self._on_no_update(silent))
+        self._update_checker.error.connect(lambda e: self._on_update_error(e, silent))
+        self._update_checker.finished.connect(self._cleanup_update_checker)
+        self._update_checker.start()
+
+    def _cleanup_update_checker(self) -> None:
+        self._update_checker = None
 
     def _on_update_available(self, version: str, body: str) -> None:
         self._latest_version = version
@@ -1209,10 +1306,12 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _load_image(self, path: Path) -> None:
         try:
-            img = Image.open(path)
-            if img.mode not in ("RGB", "RGBA", "L"):
-                img = img.convert("RGBA")
-            arr = np.array(img)
+            with Image.open(path) as img:
+                if img.mode == "L":
+                    img = img.convert("RGB")
+                elif img.mode not in ("RGB", "RGBA"):
+                    img = img.convert("RGBA")
+                arr = np.array(img)
         except Exception as e:
             QMessageBox.critical(self, "错误", f"无法加载图片：\n{e}")
             return
@@ -1279,7 +1378,7 @@ class MainWindow(QMainWindow):
         try:
             result = func(self._src_array, **self._current_params())
         except Exception as e:
-            self.statusBar().showMessage(f"算法出错：{e}")
+            QMessageBox.critical(self, "算法出错", f"处理时发生错误：\n{e}")
             return
 
         # 后处理：透明度下限 + 保护蒙版
@@ -1299,13 +1398,16 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _set_tool(self, tool: str) -> None:
         self.src_view.set_tool(tool)
-        self.btn_tool_brush.setChecked(tool == TOOL_BRUSH)
-        self.btn_tool_eraser.setChecked(tool == TOOL_ERASER)
-        self.btn_tool_lasso_brush.setChecked(tool == TOOL_LASSO_BRUSH)
-        self.btn_tool_lasso_eraser.setChecked(tool == TOOL_LASSO_ERASER)
-        self.btn_tool_magic.setChecked(tool == TOOL_MAGIC)
-        self.btn_tool_bucket.setChecked(tool == TOOL_BUCKET)
-        self.btn_tool_eyedropper.setChecked(tool == TOOL_EYEDROPPER)
+        for key, const in {
+            "brush": TOOL_BRUSH,
+            "eraser": TOOL_ERASER,
+            "lasso_brush": TOOL_LASSO_BRUSH,
+            "lasso_eraser": TOOL_LASSO_ERASER,
+            "magic": TOOL_MAGIC,
+            "bucket": TOOL_BUCKET,
+            "eyedropper": TOOL_EYEDROPPER,
+        }.items():
+            self._tool_buttons[key].setChecked(tool == const)
         msgs = {
             TOOL_BRUSH: "保护画笔：在原图上涂抹要保留的区域",
             TOOL_ERASER: "橡皮擦：擦除已涂抹的保护区",
@@ -1350,11 +1452,13 @@ class MainWindow(QMainWindow):
         self._update_color_preview(r, g, b)
         for name, val in (("bg_r", r), ("bg_g", g), ("bg_b", b)):
             w = self._param_widgets.get(name)
+            lbl = self._param_labels.get(name)
             if w is not None:
                 w.blockSignals(True)
                 w.setValue(val)
-                self._param_labels[name].setText(str(val))
                 w.blockSignals(False)
+            if lbl is not None:
+                lbl.setText(str(val))
         self._refresh_preview()
         self.statusBar().showMessage(
             f"已吸取背景色：R={r}, G={g}, B={b}", 3000
@@ -1404,7 +1508,7 @@ class MainWindow(QMainWindow):
 
     # ---- 缩放 ----
     def _on_zoom_changed(self, percent: float) -> None:
-        self._zoom_label.setText(f"缩放：{percent:.0f}%")
+        self._zoom_label.setText(f"缩放：{percent:.0f}%（相对适配）")
 
     def _sync_views(self, src, dst) -> None:
         """把 src 的 zoom + pan 同步到 dst，防止递归。"""
@@ -1438,15 +1542,33 @@ class MainWindow(QMainWindow):
             # 拖入目录 -> 直接进入批处理
             self._batch_with_src(first)
             return
-        # 拖入文件：只取第一张做预览
+        files = [p for p in paths if p.is_file()]
+        if len(files) > 1:
+            # 多文件拖入：预览第一张，并提示是否批量处理全部
+            self._load_image(files[0])
+            ret = QMessageBox.question(
+                self,
+                "批量处理",
+                f"检测到 {len(files)} 个文件，是否批量处理全部？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+            if ret == QMessageBox.Yes:
+                self._batch_with_files(files)
+            return
+        # 单文件：直接加载预览
         self._load_image(first)
 
     def _on_open(self) -> None:
         exts = " ".join(f"*{e}" for e in sorted(IMAGE_EXTS))
         path, _ = QFileDialog.getOpenFileName(
-            self, "选择图片", "", f"图片文件 ({exts});;所有文件 (*.*)"
+            self,
+            "选择图片",
+            self._last_dir("last_open_dir"),
+            f"图片文件 ({exts});;所有文件 (*.*)",
         )
         if path:
+            self._set_last_dir("last_open_dir", path)
             self._load_image(Path(path))
 
     def _on_save(self) -> None:
@@ -1463,6 +1585,8 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
+        if not path.lower().endswith(".png"):
+            path += ".png"
         try:
             _save_png(self._result_array, path)
             self.statusBar().showMessage(f"已导出：{path}")
@@ -1470,21 +1594,17 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "错误", f"导出失败：\n{e}")
 
     def _on_batch(self) -> None:
-        src = QFileDialog.getExistingDirectory(self, "选择源文件夹")
+        src = QFileDialog.getExistingDirectory(
+            self, "选择源文件夹", self._last_dir("last_batch_dir")
+        )
         if not src:
             return
+        self._set_last_dir("last_batch_dir", src)
         self._batch_with_src(Path(src))
 
     def _batch_with_src(self, src_dir: Path) -> None:
-        ret = QMessageBox.question(
-            self,
-            "批量处理",
-            f"将处理文件夹：\n{src_dir}\n\n"
-            f"算法：{ALGORITHMS[self._current_algorithm()]['label']}\n\n"
-            f"输出位置：源同目录，文件名加 _nobg 后缀。\n是否继续？",
-            QMessageBox.Yes | QMessageBox.No,
-        )
-        if ret != QMessageBox.Yes:
+        opts = BatchDialog(src_dir, self)
+        if opts.exec() != QDialog.Accepted:
             return
 
         # 进度对话框
@@ -1494,12 +1614,12 @@ class MainWindow(QMainWindow):
         dlg.setMinimumDuration(0)
         dlg.setValue(0)
 
-        worker = BatchWorker(
+        self._batch_worker = BatchWorker(
             src_dir=src_dir,
-            dst_dir=None,
+            dst_dir=opts.dst_dir,
             algorithm=self._current_algorithm(),
             params=self._current_params(),
-            recursive=False,
+            recursive=opts.recursive,
             parent=self,
         )
 
@@ -1509,18 +1629,86 @@ class MainWindow(QMainWindow):
             dlg.setLabelText(f"{done}/{total}\n{Path(cur).name}")
 
         def on_done(count: int) -> None:
+            self._batch_worker = None
             dlg.close()
             if count < 0:
                 QMessageBox.information(self, "已取消", "批量处理已取消。")
             else:
                 QMessageBox.information(self, "完成", f"成功处理 {count} 张图片。")
 
-        worker.progress.connect(on_progress)
-        worker.finished_ok.connect(on_done)
-        dlg.canceled.connect(worker.cancel)
-        worker.start()
+        self._batch_worker.progress.connect(on_progress)
+        self._batch_worker.finished_ok.connect(on_done)
+        dlg.canceled.connect(self._batch_worker.cancel)
+        self._batch_worker.start()
+
+    def _batch_with_files(self, files: list[Path]) -> None:
+        ret = QMessageBox.question(
+            self,
+            "批量处理",
+            f"将处理 {len(files)} 个文件。\n\n"
+            f"算法：{ALGORITHMS[self._current_algorithm()]['label']}\n\n"
+            f"输出位置：源文件同目录，文件名加 _nobg 后缀。\n是否继续？",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if ret != QMessageBox.Yes:
+            return
+
+        dlg = QProgressDialog("准备中…", "取消", 0, 100, self)
+        dlg.setWindowTitle("批量处理")
+        dlg.setWindowModality(Qt.WindowModal)
+        dlg.setMinimumDuration(0)
+        dlg.setValue(0)
+
+        self._batch_worker = BatchWorker(
+            files=files,
+            dst_dir=None,
+            algorithm=self._current_algorithm(),
+            params=self._current_params(),
+            parent=self,
+        )
+
+        def on_progress(done: int, total: int, cur: str) -> None:
+            dlg.setMaximum(total)
+            dlg.setValue(done)
+            dlg.setLabelText(f"{done}/{total}\n{Path(cur).name}")
+
+        def on_done(count: int) -> None:
+            self._batch_worker = None
+            dlg.close()
+            if count < 0:
+                QMessageBox.information(self, "已取消", "批量处理已取消。")
+            else:
+                QMessageBox.information(self, "完成", f"成功处理 {count} 张图片。")
+
+        self._batch_worker.progress.connect(on_progress)
+        self._batch_worker.finished_ok.connect(on_done)
+        dlg.canceled.connect(self._batch_worker.cancel)
+        self._batch_worker.start()
 
     def _show_about(self) -> None:
+        # 尝试读取 CHANGELOG.md；打包后若不存在则只显示当前版本
+        changelog_text = ""
+        try:
+            changelog_path = Path(__file__).resolve().parent.parent.parent / "CHANGELOG.md"
+            if changelog_path.exists():
+                changelog_text = changelog_path.read_text(encoding="utf-8")
+        except Exception:
+            pass
+
+        history = ""
+        if changelog_text:
+            # 提取当前版本条目
+            import re
+
+            match = re.search(
+                rf"## v{re.escape(APP_VERSION)}\n(.*?)(?:\n## v|\Z)",
+                changelog_text,
+                re.S,
+            )
+            if match:
+                history = match.group(1).strip().replace("\n", "<br>")
+                history = f"<p><b>本版更新：</b></p><p>{history}</p>"
+
         QMessageBox.about(
             self,
             "关于 RemoveBlack",
@@ -1529,27 +1717,7 @@ class MainWindow(QMainWindow):
             "<p>核心算法 <b>UnMult</b>：A = max(R,G,B); RGB ÷= A，"
             "合成回黑底视觉零损失。</p>"
             "<p>另含阈值法、颜色键、HSV 去色背景、背景色键控等备选算法。</p>"
-            "<p><b>v1.4.9</b>：移除工具栏中的「选择」工具，默认以画笔启动；"
-            "缩放/平移仍可通过滚轮 / 中键拖动完成。</p>"
-            "<p><b>v1.4.8</b>：优化底部三个操作按钮的视觉效果，统一边框、背景与 hover 状态，"
-            "避免两侧按钮融入背景。</p>"
-            "<p><b>v1.4.7</b>：「检查更新」改为常驻菜单项；无新版时点击提示已是最新，"
-            "有新版时菜单项显示红点提示。</p>"
-            "<p><b>v1.4.6</b>：新增自动更新检查：启动时检测 GitHub 最新 release，"
-            "发现新版本时在帮助菜单显示入口，点击可查看摘要并下载新版 exe。</p>"
-            "<p><b>v1.4.5</b>：导出按钮颜色调整为更淡雅的绿色，三个操作按钮尺寸统一。</p>"
-            "<p><b>v1.4.4</b>：导出 PNG 按钮改为淡绿色，突出主要操作。</p>"
-            "<p><b>v1.4.3</b>：拖动参数滑条时采用防抖刷新，解决大图预览卡顿问题。</p>"
-            "<p><b>v1.4.2</b>：UI 优化：修复参数标签截断，算法下拉框增加悬停说明；"
-            "框选画笔/橡皮改为套索画笔/橡皮。</p>"
-            "<p><b>v1.4.1</b>：移除有问题的「前景参考色」，新增「背景色键控（保色）」算法。"
-            "该算法按像素与背景色的距离直接映射 alpha 并保留原 RGB，"
-            "适合对色彩准确度要求高、UnMult 容易产生色相偏移的场景（如绿幕上的金黄色文字）。</p>"
-            "<p><b>v1.4.0</b>：新增「UnMult（吸管背景色）」、Ctrl+V 粘贴图片、吸管工具。</p>"
-            "<p><b>v1.3.2</b>：UnMult 新增「实体增益」滑块，专门解决"
-            "暗色玻璃 / 暗色实体表面漏底问题。</p>"
-            "<p><b>v1.3.1</b>：增益拉高时颜色严重偏色（青瓶变橙瓶）的问题修复。</p>"
-            "<p><b>v1.3.0</b>：UnMult 新增「不透明度增益」滑块。</p>"
+            f"{history}"
             "<hr>"
             "<p align='right'><b>临江路软件</b> 出品</p>",
         )

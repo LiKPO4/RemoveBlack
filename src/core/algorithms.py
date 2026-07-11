@@ -388,6 +388,15 @@ def hsv_key(
     softness 是额外柔边宽度，范围外逐渐恢复不透明。
     min_saturation/min_value 用于避免灰色、黑色、白色被误判为彩色背景。
     """
+    if not (0 <= int(hue) <= 359):
+        raise ValueError("hue 必须在 0~359 之间")
+    if int(hue_tolerance) < 0:
+        raise ValueError("hue_tolerance 不能为负数")
+    if int(softness) < 0:
+        raise ValueError("softness 不能为负数")
+    if int(min_saturation) < 0 or int(min_value) < 0:
+        raise ValueError("min_saturation / min_value 不能为负数")
+
     f = _to_rgba_float(img)
     rgb = f[..., :3]
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
