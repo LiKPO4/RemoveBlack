@@ -587,6 +587,12 @@ def magic_wand_select(
 ALGORITHMS = {
     "unmult": {
         "label": "UnMult（推荐，AE 同款）",
+        "tooltip": (
+            "特点：去底最干净，能保留发光、烟雾等半透明细节。\n"
+            "场景：黑底特效图、火焰、烟雾、粒子、技能图标。\n"
+            "注意：会轻微改变 RGB 颜色（除以 alpha），"
+            "若后续要当遮罩用请改用「阈值法」。"
+        ),
         "func": unmult_black,
         "params": [
             # scale=100：UI 滑块 50~300 表示 0.50~3.00
@@ -605,6 +611,11 @@ ALGORITHMS = {
     },
     "unmult_color": {
         "label": "UnMult（吸管背景色）",
+        "tooltip": (
+            "特点：用吸管吸取任意纯色背景后去底，原理同 UnMult。\n"
+            "场景：绿幕、蓝幕、纯色棚拍图。\n"
+            "用法：先点「吸管」在背景上取色，再微调清理阈值。"
+        ),
         "func": unmult_color,
         "params": [
             {"name": "bg_r", "min": 0, "max": 255, "default": 0,
@@ -625,6 +636,11 @@ ALGORITHMS = {
     },
     "color_key": {
         "label": "背景色键控（保色）",
+        "tooltip": (
+            "特点：保留原图 RGB 不变，按与背景色的距离直接算透明度。\n"
+            "场景：对颜色准确度要求高，如绿幕上的金黄色文字、产品图。\n"
+            "代价：边缘可能残留少量背景色（如绿边），可用吸管微调。"
+        ),
         "func": color_key,
         "params": [
             {"name": "bg_r", "min": 0, "max": 255, "default": 0,
@@ -641,6 +657,11 @@ ALGORITHMS = {
     },
     "threshold": {
         "label": "阈值法",
+        "tooltip": (
+            "特点：简单直接，亮度低于阈值就透明，高于就完全不透明。\n"
+            "场景：背景非常干净、纯黑的图片，或需要生成硬边遮罩。\n"
+            "注意：会丢失半透明边缘和发光效果。"
+        ),
         "func": threshold_black,
         "params": [
             {"name": "threshold", "min": 0, "max": 128, "default": 16,
@@ -649,6 +670,11 @@ ALGORITHMS = {
     },
     "chroma": {
         "label": "颜色键（柔和边缘）",
+        "tooltip": (
+            "特点：按亮度做双阈值线性渐变，边缘柔和自然。\n"
+            "场景：干净黑底图，但想保留抗锯齿边缘、光晕、半透明特效。\n"
+            "对比：比「阈值法」柔和，比「UnMult」简单。"
+        ),
         "func": chroma_key_black,
         "params": [
             {"name": "lower", "min": 0, "max": 128, "default": 8,
@@ -659,6 +685,11 @@ ALGORITHMS = {
     },
     "hsv": {
         "label": "HSV 去色背景",
+        "tooltip": (
+            "特点：按色相范围去掉指定颜色背景，不看亮度。\n"
+            "场景：绿幕、蓝幕、红幕等纯彩色背景。\n"
+            "用法：先点「吸管」取背景色，程序会自动换算成色相。"
+        ),
         "func": hsv_key,
         "params": [
             {"name": "hue", "min": 0, "max": 359, "default": 120,

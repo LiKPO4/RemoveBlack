@@ -464,8 +464,15 @@ class MainWindow(QMainWindow):
         algo_layout.setContentsMargins(8, 6, 8, 6)
 
         self.algo_combo = QComboBox()
+        self.algo_combo.setMinimumWidth(220)
+        self.algo_combo.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         for key, info in ALGORITHMS.items():
             self.algo_combo.addItem(info["label"], key)
+            self.algo_combo.setItemData(
+                self.algo_combo.count() - 1,
+                info.get("tooltip", ""),
+                Qt.ToolTipRole,
+            )
         self.algo_combo.currentIndexChanged.connect(self._on_algo_changed)
         algo_layout.addWidget(self.algo_combo)
 
@@ -730,7 +737,7 @@ class MainWindow(QMainWindow):
             hl.setSpacing(4)
             lbl = QLabel(spec["label"] + "：")
             lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            lbl.setFixedWidth(92)
+            lbl.setFixedWidth(120)
             hl.addWidget(lbl)
             hl.addWidget(slider, 1)
             hl.addWidget(value_lbl)
@@ -773,6 +780,9 @@ class MainWindow(QMainWindow):
                 int(params.get("bg_g", 255)),
                 int(params.get("bg_b", 0)),
             )
+
+        # 当前算法提示（下拉框收起时也可悬停查看）
+        self.algo_combo.setToolTip(info.get("tooltip", ""))
 
         self._refresh_preview()
 
