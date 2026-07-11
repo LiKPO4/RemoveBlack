@@ -4,8 +4,8 @@
 
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 5, 1, 0),
-    prodvers=(1, 5, 1, 0),
+    filevers=(1, 5, 2, 0),
+    prodvers=(1, 5, 2, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -21,12 +21,12 @@ VSVersionInfo(
           [
             StringStruct(u'CompanyName',      u'临江路软件'),
             StringStruct(u'FileDescription',  u'RemoveBlack — 图片去黑底工具'),
-            StringStruct(u'FileVersion',      u'1.5.1.0'),
+            StringStruct(u'FileVersion',      u'1.5.2.0'),
             StringStruct(u'InternalName',     u'RemoveBlack'),
             StringStruct(u'LegalCopyright',   u'© 临江路软件 出品'),
             StringStruct(u'OriginalFilename', u'RemoveBlack.exe'),
             StringStruct(u'ProductName',      u'RemoveBlack'),
-            StringStruct(u'ProductVersion',   u'1.5.1.0'),
+            StringStruct(u'ProductVersion',   u'1.5.2.0'),
           ]
         )
       ]

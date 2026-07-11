@@ -55,7 +55,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.5.1"
+APP_VERSION = "1.5.2"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"
@@ -481,8 +481,8 @@ class MainWindow(QMainWindow):
         if self._first_show:
             self._first_show = False
             w = max(800, self.width())
-            # 左侧给工具栏留更宽空间
-            left_w = max(660, w // 2)
+            # 左右图片区域默认等宽
+            left_w = w // 2
             self._splitter.setSizes([left_w, w - left_w])
 
     def closeEvent(self, event) -> None:  # noqa: N802, ANN001
@@ -653,7 +653,6 @@ class MainWindow(QMainWindow):
         left = QWidget()
         ll = QVBoxLayout(left)
         ll.setContentsMargins(4, 4, 4, 4)
-        ll.addWidget(QLabel("原图（可在此处涂抹保护区域）"))
 
         # 工具栏（两行：第一行工具按钮，第二行属性与操作）
         tool_bar = self._build_toolbar()
@@ -664,7 +663,6 @@ class MainWindow(QMainWindow):
         right = QWidget()
         rl = QVBoxLayout(right)
         rl.setContentsMargins(4, 4, 4, 4)
-        rl.addWidget(QLabel("去黑底预览（棋盘格 = 透明）"))
 
         # 右侧顶部：底色预设条（与左侧工具栏等高）
         bg_bar = QWidget()
