@@ -502,23 +502,35 @@ class MainWindow(QMainWindow):
         action_layout = QHBoxLayout()
         self.btn_open = QPushButton("打开图片")
         self.btn_save = QPushButton("导出 PNG")
-        self.btn_save.setStyleSheet(
+        self.btn_batch = QPushButton("批量处理")
+
+        # 三个操作按钮统一尺寸；导出按钮用淡雅绿色突出
+        btn_common = (
             "QPushButton {"
-            "  background-color: #81c784;"
-            "  color: #1b5e20;"
-            "  border: 1px solid #66bb6a;"
             "  border-radius: 4px;"
+            "  border: 1px solid transparent;"
             "  padding: 4px 10px;"
-            "}"
-            "QPushButton:hover { background-color: #66bb6a; }"
-            "QPushButton:pressed { background-color: #4caf50; }"
-            "QPushButton:disabled {"
-            "  background-color: #c8e6c9;"
-            "  color: #a5d6a7;"
-            "  border-color: #c8e6c9;"
+            "  min-height: 22px;"
             "}"
         )
-        self.btn_batch = QPushButton("批量处理")
+        self.btn_open.setStyleSheet(btn_common)
+        self.btn_batch.setStyleSheet(btn_common)
+        self.btn_save.setStyleSheet(
+            btn_common
+            + "QPushButton {"
+            "  background-color: #dcedc8;"
+            "  color: #33691e;"
+            "  border: 1px solid #c5e1a5;"
+            "}"
+            "QPushButton:hover { background-color: #c5e1a5; }"
+            "QPushButton:pressed { background-color: #aed581; }"
+            "QPushButton:disabled {"
+            "  background-color: #f1f8e9;"
+            "  color: #c5e1a5;"
+            "  border-color: #e8f5e9;"
+            "}"
+        )
+
         self.btn_open.clicked.connect(self._on_open)
         self.btn_save.clicked.connect(self._on_save)
         self.btn_batch.clicked.connect(self._on_batch)
