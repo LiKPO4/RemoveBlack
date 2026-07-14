@@ -48,6 +48,7 @@ from pathlib import Path
 
 from .core import process_file, process_folder
 from .core.algorithms import ALGORITHMS
+from .core.logger import logger, init_logging
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -250,6 +251,7 @@ def _algo_kwargs(args) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    init_logging()
     args = _build_parser().parse_args(argv)
     kwargs = _algo_kwargs(args)
     out_root = Path(args.out) if args.out else None
@@ -260,6 +262,7 @@ def main(argv: list[str] | None = None) -> int:
         p = Path(raw)
         if not p.exists():
             print(f"[SKIP] not found: {p}")
+            logger.warning("file not found: %s", p)
             total_fail += 1
             continue
 
@@ -289,6 +292,7 @@ def main(argv: list[str] | None = None) -> int:
                 total_ok += 1
             except Exception as e:
                 print(f"[FAIL] {p}: {e}")
+                logger.exception("failed to process: %s", p)
                 total_fail += 1
 
     print(f"\nDone. success={total_ok}, failed={total_fail}")

@@ -29,6 +29,8 @@ from .gui import run  # noqa: E402
 
 
 def main() -> int:
+    from .core.logger import init_logging
+    init_logging()
     run()
     return 0
 
