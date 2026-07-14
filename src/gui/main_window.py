@@ -41,7 +41,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..core import ALGORITHMS, apply_protection, process_folder
-from ..core.processor import _save_png, process_files  # 复用保存逻辑
+from ..core.processor import _save_image, process_files
 from .widgets import (
     IMAGE_EXTS,
     TOOL_BRUSH,
@@ -434,6 +434,7 @@ class MainWindow(QMainWindow):
 
         self._src_array: Optional[np.ndarray] = None  # 原图 RGBA
         self._src_path: Optional[Path] = None
+        self._src_exif: Optional[bytes] = None       # 原图 EXIF 元数据
         self._result_array: Optional[np.ndarray] = None
         self._param_widgets: dict[str, QSlider] = {}
         self._param_labels: dict[str, QLabel] = {}
@@ -1353,6 +1354,7 @@ class MainWindow(QMainWindow):
     def _load_image(self, path: Path) -> None:
         try:
             with Image.open(path) as img:
+                self._src_exif = img.info.get("exif") if "exif" in img.info else None
                 if img.mode == "L":
                     img = img.convert("RGB")
                 elif img.mode not in ("RGB", "RGBA"):
@@ -1368,6 +1370,8 @@ class MainWindow(QMainWindow):
         """把 numpy 数组设置为当前源图。"""
         self._src_array = arr
         self._src_path = path
+        if path is None:
+            self._src_exif = None
         self.src_view.set_image(_np_to_qimage(arr))
         self.src_view.set_image_size(arr.shape[1], arr.shape[0])  # 重置蒙版尺寸
         # 把 RGB 缓存给 src_view 以供魔棒/吸管使用
@@ -1622,19 +1626,27 @@ class MainWindow(QMainWindow):
             return
         if self._src_path is not None:
             default = str(
-                self._src_path.with_name(f"{self._src_path.stem}_nobg.png")
+                self._src_path.with_name(f"{self._src_path.stem}_nobg")
             )
         else:
-            default = "clipboard_nobg.png"
-        path, _ = QFileDialog.getSaveFileName(
-            self, "导出 PNG", default, "PNG 图片 (*.png)"
+            default = "clipboard_nobg"
+        path, selected_filter = QFileDialog.getSaveFileName(
+            self, "导出图片", default,
+            "PNG 图片 (*.png);;WebP 图片 (*.webp)",
         )
         if not path:
             return
-        if not path.lower().endswith(".png"):
-            path += ".png"
+        # 根据筛选器或扩展名决定格式
+        if path.lower().endswith(".webp") or "webp" in selected_filter.lower():
+            fmt = "WEBP"
+            if not path.lower().endswith(".webp"):
+                path += ".webp"
+        else:
+            fmt = "PNG"
+            if not path.lower().endswith(".png"):
+                path += ".png"
         try:
-            _save_png(self._result_array, path)
+            _save_image(self._result_array, path, exif_bytes=self._src_exif, fmt=fmt)
             self.statusBar().showMessage(f"已导出：{path}")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"导出失败：\n{e}")

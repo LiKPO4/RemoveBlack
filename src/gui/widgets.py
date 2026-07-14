@@ -31,7 +31,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QFrame, QSizePolicy, QWidget
 
 # 主窗口要根据扩展名过滤拖入文件
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff", ".webp"}
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff", ".webp", ".heic", ".heif"}
 
 # 绘制模式
 TOOL_NONE = "none"

@@ -1,7 +1,7 @@
 """
 单图与批量处理调度。
 
-- process_file:    处理一张图，输出 PNG（带透明通道）。
+- process_file:    处理一张图，输出 PNG / WebP（带透明通道）。
 - process_folder:  扫描目录，批量处理，可选回调汇报进度。
 """
 
@@ -16,22 +16,55 @@ from PIL import Image
 
 from .algorithms import ALGORITHMS, apply_protection
 
-SUPPORTED_INPUT_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff", ".webp"}
+SUPPORTED_INPUT_EXTS = {
+    ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff", ".webp",
+    ".heic", ".heif",
+}
+
+# 尝试注册 HEIC/HEIF 支持
+_HEIC_OK = False
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+    _HEIC_OK = True
+except ImportError:
+    pass
+
+SUPPORTED_OUTPUT_EXTS = {".png", ".webp"}
 
 
-def _load_image(path: str | os.PathLike) -> np.ndarray:
-    """读图为 RGB/RGBA uint8（灰度自动转 RGB）。"""
+def _load_image(path: str | os.PathLike) -> tuple[np.ndarray, bytes | None]:
+    """读图为 RGB/RGBA uint8 + EXIF 原始字节（灰度自动转 RGB）。"""
     with Image.open(path) as img:
+        # 保留 EXIF / ICC Profile 等元数据，供写出时回填
+        exif_bytes = img.info.get("exif") if "exif" in img.info else None
+
         if img.mode == "L":
             img = img.convert("RGB")
         elif img.mode not in ("RGB", "RGBA"):
             img = img.convert("RGBA")
-        return np.array(img)
+        arr = np.array(img)
+    return arr, exif_bytes
 
 
-def _save_png(arr: np.ndarray, path: str | os.PathLike) -> None:
-    """保存 RGBA numpy 数组到 PNG。"""
-    Image.fromarray(arr, mode="RGBA").save(path, format="PNG", optimize=True)
+def _save_image(
+    arr: np.ndarray,
+    path: str | os.PathLike,
+    exif_bytes: bytes | None = None,
+    fmt: str = "PNG",
+) -> None:
+    """保存 RGBA numpy 数组到指定格式，可选附带 EXIF。"""
+    out = Image.fromarray(arr, mode="RGBA")
+    save_kwargs: dict = {"format": fmt}
+    if fmt == "PNG":
+        save_kwargs["optimize"] = True
+    if exif_bytes is not None:
+        save_kwargs["exif"] = exif_bytes
+    out.save(path, **save_kwargs)
+
+
+# 保留旧名以兼容直接调用（GUI 中仍有引用）
+_save_png = _save_image
 
 
 def process_file(
@@ -60,7 +93,7 @@ def process_file(
     if algorithm not in ALGORITHMS:
         raise ValueError(f"unknown algorithm: {algorithm}")
 
-    arr = _load_image(src)
+    arr, exif = _load_image(src)
     func = ALGORITHMS[algorithm]["func"]
     result = func(arr, **params)
 
@@ -73,7 +106,7 @@ def process_file(
     else:
         dst = Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    _save_png(result, dst)
+    _save_image(result, dst, exif_bytes=exif, fmt="PNG")
     return dst
 
 

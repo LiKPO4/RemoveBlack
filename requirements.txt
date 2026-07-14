@@ -1,3 +1,4 @@
 numpy>=1.24,<2.0
 Pillow>=10.0
 PySide6>=6.6
+pillow-heif>=0.15; platform_system == "Windows"
