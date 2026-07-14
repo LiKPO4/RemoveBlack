@@ -15,6 +15,7 @@ import numpy as np
 from PIL import Image
 
 from .algorithms import ALGORITHMS, apply_protection
+from .logger import logger
 
 SUPPORTED_INPUT_EXTS = {
     ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".tif", ".tiff", ".webp",
@@ -37,7 +38,7 @@ def _load_image(path: str | os.PathLike) -> tuple[np.ndarray, bytes | None]:
     """读图为 RGB/RGBA uint8 + EXIF 原始字节（灰度自动转 RGB）。"""
     with Image.open(path) as img:
         # 保留 EXIF / ICC Profile 等元数据，供写出时回填
-        exif_bytes = img.info.get("exif") if "exif" in img.info else None
+        exif_bytes = img.info.get("exif")
 
         if img.mode == "L":
             img = img.convert("RGB")
@@ -165,7 +166,7 @@ def process_folder(
             )
             written.append(out)
         except Exception as e:  # 单图失败不影响整批
-            print(f"[WARN] failed to process {src}: {e}")
+            logger.warning("failed to process %s: %s", src, e)
         finally:
             if progress is not None:
                 progress(i, total, src)
@@ -204,7 +205,7 @@ def process_files(
             )
             written.append(out)
         except Exception as e:
-            print(f"[WARN] failed to process {src}: {e}")
+            logger.warning("failed to process %s: %s", src, e)
         finally:
             if progress is not None:
                 progress(i, total, src)

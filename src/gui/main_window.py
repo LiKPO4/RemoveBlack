@@ -1354,7 +1354,7 @@ class MainWindow(QMainWindow):
     def _load_image(self, path: Path) -> None:
         try:
             with Image.open(path) as img:
-                self._src_exif = img.info.get("exif") if "exif" in img.info else None
+                self._src_exif = img.info.get("exif")
                 if img.mode == "L":
                     img = img.convert("RGB")
                 elif img.mode not in ("RGB", "RGBA"):
