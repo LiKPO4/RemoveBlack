@@ -20,6 +20,7 @@ from src.core.algorithms import (  # noqa: E402
     apply_protection,
     chroma_key_black,
     color_key,
+    hsv_key,
     magic_wand_select,
     threshold_black,
     unmult_black,
@@ -412,6 +413,111 @@ def test_color_key_invalid_args():
     except ValueError:
         return
     raise AssertionError("upper <= lower 时应当抛 ValueError")
+
+
+# ---------------------------------------------------------------------------
+# HSV Key
+# ---------------------------------------------------------------------------
+def test_hsv_key_pure_green_becomes_transparent():
+    """纯绿色（hue=120）在默认参数下应完全透明。"""
+    img = np.array([[[0, 255, 0]]], dtype=np.uint8)  # 纯绿
+    out = hsv_key(img, hue=120, hue_tolerance=20)
+    assert out.shape == (1, 1, 4)
+    assert out[0, 0, 3] == 0
+
+
+def test_hsv_key_non_target_hue_remains_opaque():
+    """非目标色相的像素（如纯红 hue≈0）应完全不透明。"""
+    img = np.array([[[255, 0, 0]]], dtype=np.uint8)  # 纯红
+    out = hsv_key(img, hue=120, hue_tolerance=20)
+    assert out[0, 0, 3] == 255
+
+
+def test_hsv_key_edge_falloff():
+    """接近目标色相但超出容差、在柔边范围内的像素应有半透明 alpha。"""
+    # 绿色 hue=120，tolerance=20 意味着 100~140 完全透明
+    # softness=30 意味着 100-(30+30)=40 到 100 之间线性渐变
+    # 选 hue≈80 的颜色
+    img = np.array([[[0, 255, 170]]], dtype=np.uint8)  # 偏蓝绿, hue≈160? 
+    # 选一个在 tolerance+softness 范围内的颜色
+    # hue_tolerance=20, softness=30 → 完全透明范围 100~140, 半透明范围 70~100 和 140~170
+    # 选 hue≈80 → 在柔边范围
+    img2 = np.array([[[128, 200, 0]]], dtype=np.uint8)  # 偏黄绿, 大约 hue≈80
+    out = hsv_key(img2, hue=120, hue_tolerance=20, softness=30)
+    a = out[0, 0, 3]
+    # 在柔边范围内，alpha 应在 0~255 之间
+    assert 0 < a < 255, f"expected partial alpha in falloff zone, got {a}"
+
+
+def test_hsv_key_low_saturation_ignored():
+    """低饱和度的灰色应被视为非彩色区域，保持不透明。"""
+    # 灰色 (128,128,128) 饱和度≈0，即使 hue 可能落在目标范围
+    img = np.array([[[128, 128, 128]]], dtype=np.uint8)
+    out = hsv_key(img, hue=120, hue_tolerance=20, min_saturation=40, min_value=40)
+    assert out[0, 0, 3] == 255
+
+
+def test_hsv_key_low_value_ignored():
+    """暗色（low value）应被视为背景无效区域，保持不透明。"""
+    # 很暗的"绿色" (0, 8, 0)，value≈8
+    img = np.array([[[0, 8, 0]]], dtype=np.uint8)
+    out = hsv_key(img, hue=120, hue_tolerance=20, min_saturation=40, min_value=40)
+    # value < min_value，不应被当作彩色背景处理
+    assert out[0, 0, 3] == 255
+
+
+def test_hsv_key_pure_black_remains_opaque():
+    """纯黑（value=0）在任何色相参数下都应完全透明？不对，应该是完全 opaque。
+    实际上黑色 s=0 ✓，所以被 color_ok 过滤保留。"""
+    img = np.array([[[0, 0, 0]]], dtype=np.uint8)
+    out = hsv_key(img, hue=120, hue_tolerance=180, min_saturation=40, min_value=40)
+    assert out[0, 0, 3] == 255
+
+
+def test_hsv_key_pure_white_remains_opaque():
+    """纯白（saturation=0）应保持不透明。"""
+    img = np.array([[[255, 255, 255]]], dtype=np.uint8)
+    out = hsv_key(img, hue=120, hue_tolerance=180, min_saturation=40, min_value=40)
+    assert out[0, 0, 3] == 255
+
+
+def test_hsv_key_invalid_hue():
+    """hue 超出 0~359 应抛 ValueError。"""
+    img = np.zeros((2, 2, 3), dtype=np.uint8)
+    try:
+        hsv_key(img, hue=400)
+    except ValueError:
+        return
+    raise AssertionError("hue 超出范围时应当抛 ValueError")
+
+
+def test_hsv_key_invalid_tolerance():
+    """负容差应抛 ValueError。"""
+    img = np.zeros((2, 2, 3), dtype=np.uint8)
+    try:
+        hsv_key(img, hue_tolerance=-5)
+    except ValueError:
+        return
+    raise AssertionError("负容差时应当抛 ValueError")
+
+
+def test_hsv_key_invalid_softness():
+    """负柔边应抛 ValueError。"""
+    img = np.zeros((2, 2, 3), dtype=np.uint8)
+    try:
+        hsv_key(img, softness=-5)
+    except ValueError:
+        return
+    raise AssertionError("负柔边时应当抛 ValueError")
+
+
+def test_hsv_key_zero_tolerance_no_falloff():
+    """tolerance=0 时即使接近的色相也应完全透明（core=0），
+    但超出 core 则在 softness 内线性渐变。"""
+    # 绿色 hue=120 完全透明
+    img_green = np.array([[[0, 200, 0]]], dtype=np.uint8)
+    out = hsv_key(img_green, hue=120, hue_tolerance=0, softness=30)
+    assert out[0, 0, 3] == 0
 
 
 # ---------------------------------------------------------------------------
