@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.6.0
+
+### 新增
+- 支持 HEIC/HEIF 图片输入（iPhone 默认格式）
+- 导出支持 WebP 格式（体积更小，适合 UI 素材分发）
+- 导出图片保留原图 EXIF 元数据（ICC Profile / DPI 等不会丢失）
+
+### 改进
+- 新增统一日志系统，异常自动记录到 `%LOCALAPPDATA%/RemoveBlack/removeblack.log`，方便排错
+- 批量处理错误改用 logger 记录，避免打包后 `print` 不落地的历史问题
+
+### 开发
+- HSV 算法新增 11 个单元测试，测试总数从 30 → 41
+
 ## v1.5.5
 
 ### 改进
