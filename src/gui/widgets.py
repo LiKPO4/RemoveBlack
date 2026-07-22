@@ -495,8 +495,8 @@ class PaintableView(DropArea):
         elif tool == TOOL_EYEDROPPER:
             self.setCursor(QCursor(Qt.CrossCursor))
         else:
-            # 圆形画笔：自绘光标圈
-            self.setCursor(QCursor(Qt.BlankCursor))
+            # 圆形画笔/橡皮：默认十字光标，鼠标进入图像区域后自绘圆圈
+            self.setCursor(QCursor(Qt.CrossCursor))
         self.update()
 
     def set_source_rgb(self, src_rgb: Optional[np.ndarray]) -> None:

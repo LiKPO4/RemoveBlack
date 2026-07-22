@@ -761,11 +761,23 @@ class MainWindow(QMainWindow):
         split.addWidget(right)
         split.setOpaqueResize(True)
         split.setChildrenCollapsible(False)
-        split.setHandleWidth(10)
+        split.setHandleWidth(3)
         split.setStyleSheet(
-            "QSplitter::handle:horizontal{background:#888;}"
-            "QSplitter::handle:horizontal:hover{background:#1976d2;}"
-            "QSplitter::handle:horizontal:pressed{background:#0d47a1;}"
+            "QSplitter::handle:horizontal{"
+            "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+            "    stop:0 transparent, stop:0.4 #c0c0c0, stop:0.5 #aaa,"
+            "    stop:0.6 #c0c0c0, stop:1 transparent);"
+            "}"
+            "QSplitter::handle:horizontal:hover{"
+            "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+            "    stop:0 transparent, stop:0.3 #64b5f6, stop:0.5 #1976d2,"
+            "    stop:0.7 #64b5f6, stop:1 transparent);"
+            "}"
+            "QSplitter::handle:horizontal:pressed{"
+            "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+            "    stop:0 transparent, stop:0.3 #1565c0, stop:0.5 #0d47a1,"
+            "    stop:0.7 #1565c0, stop:1 transparent);"
+            "}"
         )
         self._splitter = split
 
