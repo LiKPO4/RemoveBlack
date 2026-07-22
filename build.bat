@@ -13,6 +13,8 @@ setlocal EnableDelayedExpansion
 cd /d %~dp0
 
 REM ---------- 找一个真 Python（避开 Windows Store 的 0 字节存根） ----------
+REM 若外部已设置 PY（如 CI 环境），直接使用
+if defined PY goto :py_found
 set "PY="
 for %%P in (
     "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
@@ -39,6 +41,7 @@ if not defined PY (
     echo         请安装官方 Python 或 Anaconda 后重试。
     exit /b 1
 )
+:py_found
 echo Using Python: !PY!
 set "APP_VERSION=v1.6.1"
 
@@ -46,7 +49,7 @@ REM ---------- 关掉旧 exe，避免 PermissionError 32 ----------
 taskkill /F /IM RemoveBlack.exe /T >nul 2>nul
 taskkill /F /IM RemoveBlack-cli.exe /T >nul 2>nul
 
-echo [1/2] Installing dependencies...
+echo [1/4] Installing dependencies...
 !PY! -m pip install --upgrade pip --no-compile
 !PY! -m pip install --no-compile -r requirements.txt
 !PY! -m pip install --no-compile pyinstaller
