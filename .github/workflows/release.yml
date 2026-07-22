@@ -46,19 +46,9 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install pyinstaller
 
-      - name: Build GUI exe
-        run: |
-          python -m PyInstaller `
-            --noconfirm --clean `
-            --onefile --windowed `
-            --name RemoveBlack `
-            --icon assets\icon.ico `
-            --version-file version_info.txt `
-            --add-data "assets\icon.ico;assets" `
-            --hidden-import PySide6.QtCore `
-            --hidden-import PySide6.QtGui `
-            --hidden-import PySide6.QtWidgets `
-            run_gui.py
+      - name: Build GUI exe (Two-stage Fast Bootstrapper)
+        shell: cmd
+        run: build.bat
 
       - name: Create versioned copy
         shell: pwsh
