@@ -55,7 +55,7 @@ from .widgets import (
     PaintableView,
 )
 
-APP_VERSION = "1.6.0"
+APP_VERSION = "1.6.1"
 
 # GitHub 仓库，用于检查更新
 UPDATE_REPO = "LiKPO4/RemoveBlack"

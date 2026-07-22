@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 APP_NAME = "RemoveBlack"
-CURRENT_VERSION = "v1.6.0"
+CURRENT_VERSION = "v1.6.1"
 
 
 def get_cache_dir() -> Path:
