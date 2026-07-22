@@ -52,11 +52,11 @@ echo [1/2] Installing dependencies...
 !PY! -m pip install --no-compile pyinstaller
 
 echo.
-echo [2/2] Building GUI (RemoveBlack.exe)...
+echo [2/4] Building Core Runtime (RemoveBlack_Core onedir)...
 !PY! -m PyInstaller ^
     --noconfirm --clean ^
-    --onefile --windowed ^
-    --name RemoveBlack ^
+    --onedir --windowed ^
+    --name RemoveBlack_Core ^
     --icon assets\icon.ico ^
     --version-file version_info.txt ^
     --add-data "assets\icon.ico;assets" ^
@@ -95,14 +95,37 @@ echo [2/2] Building GUI (RemoveBlack.exe)...
     --exclude-module PySide6.QtSpatialAudio ^
     run_gui.py
 if errorlevel 1 (
-    echo [ERROR] GUI build failed. See output above.
+    echo [ERROR] Core runtime build failed.
     exit /b 1
 )
+
+echo.
+echo [3/4] Packaging core bundle...
+!PY! -c "import shutil; shutil.make_archive('core_bundle', 'zip', 'dist/RemoveBlack_Core')"
+
+echo.
+echo [4/4] Building Lightweight Bootstrapper (RemoveBlack.exe)...
+!PY! -m PyInstaller ^
+    --noconfirm --clean ^
+    --onefile --windowed ^
+    --name RemoveBlack ^
+    --icon assets\icon.ico ^
+    --version-file version_info.txt ^
+    --add-data "core_bundle.zip;." ^
+    run_loader.py
+
+if errorlevel 1 (
+    echo [ERROR] Bootstrapper build failed.
+    exit /b 1
+)
+
+if exist core_bundle.zip del /f /q core_bundle.zip
 copy /Y "dist\RemoveBlack.exe" "dist\RemoveBlack-!APP_VERSION!.exe" >nul
 
 echo.
 echo ============================================================
-echo  Done. Output in:  dist\RemoveBlack.exe
-echo                    dist\RemoveBlack-!APP_VERSION!.exe
+echo  Done. Single-file Fast Bootstrapper generated at:
+echo          dist\RemoveBlack.exe
+echo          dist\RemoveBlack-!APP_VERSION!.exe
 echo ============================================================
 endlocal

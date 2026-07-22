@@ -24,12 +24,10 @@ def resource_path(rel: str) -> Path:
     return Path(__file__).resolve().parent.parent / rel
 
 
-# 顶层导入 GUI，确保 PyInstaller 静态分析能追到 PySide6 依赖
-from .gui import run  # noqa: E402
-
-
 def main() -> int:
     from .core.logger import init_logging
+    from .gui import run
+
     init_logging()
     run()
     return 0
